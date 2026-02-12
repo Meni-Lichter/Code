@@ -37,23 +37,35 @@ def read_file(path: Path, file_type:str ,header = None) -> pd.DataFrame:
             )
             return None
         
-    
-        relevant_sheet = pick_sheet(path, file_type)
-        
         if isinstance(path, str):
             path = Path(path)
         ext = path.suffix.lower()
+    
+        relevant_sheet = pick_sheet(path, file_type)
         print (f"Using sheet: {relevant_sheet} from file: {path.name}")
+
+        # Read file based on extension
         if ext == ".csv":
             df = pd.read_csv(path, header=header)
         elif ext in [".xlsx", ".xlsm"]: 
             df = pd.read_excel(path, sheet_name=relevant_sheet, header=header, engine='openpyxl')
         elif ext in [".xls"]:
-            df = pd.read_excel(path, sheet_name=relevant_sheet, header=header)
+            df = pd.read_excel(path, sheet_name=relevant_sheet, header=header,engine='xlrd')
             print ("read .xls file with pandas")
         else:
             raise ValueError(f"Unsupported file format: {ext}. Only .xlsx, .xlsm, and .csv files are supported.")
-        print (f"DataFrame shape: {df.shape}") # Debug print
+
+        print(f"DataFrame shape: {df.shape}")
+        
+        required_columns = config[file_type].get("required_fields", [])
+
+        if not set(required_columns).issubset(set(df.columns)):
+            messagebox.showerror(
+                "Error",
+                f"Sheet '{relevant_sheet}' must contain columns: {required_columns}"
+            )
+            return None
+
         return df
     
     except Exception as e:

@@ -41,15 +41,6 @@ def load_dictionary(dict_path):
     if df_dict is None:
         return None
 
-    required_columns = config ["dictionary"].get("required_fields", ["12NC", "Mapped Items"])
-
-    if not set(required_columns).issubset(set(df_dict.columns)):
-        messagebox.showerror(
-            "Error",
-            f"Sheet '12NC_Mapping' must contain columns: {required_columns}"
-        )
-        return None
-
     dict_mapping = {}
     invalid_keys = []
     invalid_values = []
@@ -227,55 +218,6 @@ def load_cbom(cbom_path, config):
     return room_data, data_12nc
 
 
-
-
-def load_excel(path: Path, mode: int = 1) -> pd.DataFrame:
-    """
-    Read Excel files (.xlsx, .xlsm) depending on mode:
-    - mode=1: full load with dtype=str
-    - mode=0: header-only (nrows=0)
-    Automatically picks the correct sheet depending on file_type:
-    - Leading → first sheet not named 'Summary'
-    - IH10 / IW75 → 'Sheet1' if exists, else first
-    """
-    try:
-        chosen = pick_sheet(path)
-
-        if mode == 1:
-            # Read with string dtype directly to avoid double conversion
-            df = pd.read_excel(
-                path, 
-                engine="openpyxl", 
-                sheet_name=chosen, 
-                header=0, 
-                dtype=str,  # Use str for consistency
-                keep_default_na=False  # Prevents NaN creation
-            )
-            return df.fillna("")  # Just in case some NaNs slip through
-
-        elif mode == 0:
-            # Header-only read with consistent string typing
-            df = pd.read_excel(
-                path, 
-                engine="openpyxl", 
-                sheet_name=chosen, 
-                nrows=0,
-                dtype=str  # Consistent with mode 1
-            )
-            return df
-        
-        else:
-            raise ValueError(f"Invalid mode={mode}. Expected 0 (headers only) or 1 (full read).")
-
-    except FileNotFoundError:
-        raise ValueError(f"File not found: {path}")
-    except Exception as e:
-        msg = (
-            f"Error loading info from sheet '{chosen if 'chosen' in locals() else 'unknown'}'\n\n"
-            f"File: {path.name}\n\n"
-            f"Error: {str(e)}"
-        )
-        raise ValueError(msg) from e  # Preserve original exception chain
 
 
 
