@@ -6,13 +6,27 @@ import re
 from datetime import datetime
 import sys
 from collections import OrderedDict
+import json
+import logging
+
+from pathlib import Path
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Use relative imports for functions from data_utility
+from .data_utility import (
+    col_letter_to_index,
+    normalize_identifier,
+    find_column_by_canon,
+    load_config, pick_sheet
+)
 
 # ---------- REGEX PATTERNS ----------
 KEY_REGEX = r"^\d{4} \d{3} \d{5}$" # Matches "1234 567 89123"
 VALUE_REGEX = r"^[A-Z]{3,4}\d+$" # Matches "ABC123", "ABCD4567", etc.
-# -------------------------
-# LOAD DICTIONARY FILE
-# -------------------------
+
+
 def load_dictionary(dict_path):
     """
     Loads dictionary Excel from sheet named '12NC_Mapping' into a mapping:
@@ -23,6 +37,7 @@ def load_dictionary(dict_path):
         # Read only the sheet named '12NC_Mapping'
         df_dict = pd.read_excel(dict_path, sheet_name="12NC_Mapping")
     except PermissionError as e:
+        logger.error(f"Could not open the dictionary file due to a permission error: {e}")
         messagebox.showerror(
             "Permission Error",
             f"Could not open the dictionary file due to a permission error:\n\n{e}\n\n"
@@ -83,22 +98,7 @@ def load_dictionary(dict_path):
 
     return dict_mapping
 
- # Convert column letters to indices (A=0, B=1, ..., Z=25, AA=26, etc.)
-def col_letter_to_index(col_letter):
-    """Converts Excel column letter(s) to a zero-based index.
-    Args:
-        col_letter (str): Excel column letter(s) (e.g., 'A', 'B', ..., 'Z', 'AA', etc.)
-    
-    Returns:
-        int: Zero-based column index
-    """
-
-    col_letter = col_letter.upper()
-    index = 0
-    for i, char in enumerate(reversed(col_letter)):
-        index += (ord(char) - ord('A') + 1) * (26 ** i)
-    return index - 1
-
+ 
 
 def read_CBOM(cbom_path, config):
     """
@@ -114,6 +114,8 @@ def read_CBOM(cbom_path, config):
     """
     # Regex pattern for valid 12NC format: ####-###-#####
     NC12_FORMAT_REGEX = r"^\d{4}-\d{3}-\d{5}$"
+     # After normalization: 12 consecutive digits
+    NC12_NORMALIZED_REGEX = r"^\d{12}$"
     
     # Get configuration values
     room_col_start = config.get('cbom_room_col_start', 'G')
@@ -125,6 +127,7 @@ def read_CBOM(cbom_path, config):
     
     try:
         # Read the Excel file without headers
+    #TODO : ADD CHECKING IF FILE IS OPEN / EXISTS BEFORE TRYING TO READ, TO AVOID UNNECESSARY ERROR POPUPS
         df = pd.read_excel(cbom_path, header=None)
     except PermissionError as e:
         messagebox.showerror(
@@ -151,7 +154,7 @@ def read_CBOM(cbom_path, config):
     nc12_row_start_idx = nc12_row_start - 1
     
     # Extract room information (starting from room_col_start)
-    room_numbers = df.iloc[room_num_row_idx, room_col_idx:].values
+    room_numbers = df.iloc[room_num_row_idx, room_col_idx:].values #
     room_descriptions = df.iloc[room_desc_row_idx, room_col_idx:].values
     
     # Extract 12NC information (starting from nc12_row_start)
@@ -165,12 +168,19 @@ def read_CBOM(cbom_path, config):
     room_data = {}
     data_12nc = {}
     
+    ############################
     # Process data for each room
+    ############################
     for room_idx, room_num in enumerate(room_numbers):
         if pd.isna(room_num):
             continue
         
-        room_num = str(room_num).strip()
+        room_num_str = str(room_num).strip()
+        room_num_normalized = normalize_identifier(room_num_str)
+        
+        if not room_num_normalized:  # Skip empty normalized values
+            continue
+        
         room_desc = str(room_descriptions[room_idx]).strip() if not pd.isna(room_descriptions[room_idx]) else ""
         
         # Collect all 12NCs for this room
@@ -185,6 +195,12 @@ def read_CBOM(cbom_path, config):
             if not re.match(NC12_FORMAT_REGEX, nc12_num_str):
                 continue
             
+            nc12_num_normalized = normalize_identifier(nc12_num_str)
+            
+            # Validate normalized format (12 digits)
+            if not re.match(NC12_NORMALIZED_REGEX, nc12_num_normalized):
+                continue
+            
             quantity = quantity_matrix[nc12_idx, room_idx]
             
             # Only include if quantity exists and is not zero
@@ -192,16 +208,20 @@ def read_CBOM(cbom_path, config):
                 nc12_desc = str(nc12_descriptions[nc12_idx]).strip() if not pd.isna(nc12_descriptions[nc12_idx]) else ""
                 
                 room_12ncs.append({
-                    '12NC': nc12_num_str,
+                    '12NC': nc12_num_normalized,  # Store normalized version
+                    '12NC_Original': nc12_num_str,  # Keep original for reference
                     '12NC_Description': nc12_desc,
                     'Quantity': quantity
                 })
         
-        # Create DataFrame for this room
+        # Create DataFrame for this room (use normalized room number as key)
         if room_12ncs:
-            room_data[room_num] = pd.DataFrame(room_12ncs)
+            room_data[room_num_normalized] = pd.DataFrame(room_12ncs)
     
+    ############################
     # Process data for each 12NC
+    ############################
+    valid_12nc_count = 0
     for nc12_idx, nc12_num in enumerate(nc12_numbers):
         if pd.isna(nc12_num):
             continue
@@ -212,6 +232,13 @@ def read_CBOM(cbom_path, config):
         if not re.match(NC12_FORMAT_REGEX, nc12_num_str):
             continue
         
+        nc12_num_normalized = normalize_identifier(nc12_num_str)
+        
+        # Validate normalized format (12 digits)
+        if not re.match(NC12_NORMALIZED_REGEX, nc12_num_normalized):
+            continue
+        
+        valid_12nc_count += 1
         nc12_desc = str(nc12_descriptions[nc12_idx]).strip() if not pd.isna(nc12_descriptions[nc12_idx]) else ""
         
         # Collect all rooms for this 12NC
@@ -221,29 +248,83 @@ def read_CBOM(cbom_path, config):
                 continue
             
             quantity = quantity_matrix[nc12_idx, room_idx]
-            if (nc12_num_str == "9896-061-30321"):
-                print (f"Processing 12NC {nc12_num_str} for Room {room_num}: Quantity={quantity}")
-                print (f"coardinations in quantity matrix: nc12_idx={nc12_idx}, room_idx={room_idx} ") 
-            # Only include if quantity exists and is not zero
+            
+            # Only include if quantity exists and is greater than 0
             if not pd.isna(quantity) and quantity != 0:
-                room_num = str(room_num).strip()
+                room_num_str = str(room_num).strip()
+                room_num_normalized = normalize_identifier(room_num_str)
+                
+                if not room_num_normalized:  # Skip empty normalized values
+                    continue
+                
                 room_desc = str(room_descriptions[room_idx]).strip() if not pd.isna(room_descriptions[room_idx]) else ""
                 
                 nc12_rooms.append({
-                    'Room': room_num,
+                    'Room': room_num_normalized,  # Store normalized version
+                    'Room_Original': room_num_str,  # Keep original for reference
                     'Room_Description': room_desc,
                     'Quantity': quantity
                 })
         
-        # Create DataFrame for this 12NC
+        # Create DataFrame for this 12NC (use normalized 12NC as key)
         if nc12_rooms:
-            data_12nc[nc12_num_str] = pd.DataFrame(nc12_rooms)
+            data_12nc[nc12_num_normalized] = pd.DataFrame(nc12_rooms)
     
     return room_data, data_12nc
 
 
+# Load Excel with dtype=str, fillna("") 
+def load_excel(path: Path, mode: int = 1) -> pd.DataFrame:
+    """
+    Read Excel files (.xlsx, .xlsm) depending on mode:
+    - mode=1: full load with dtype=str
+    - mode=0: header-only (nrows=0)
+    Automatically picks the correct sheet depending on file_type:
+    - Leading → first sheet not named 'Summary'
+    - IH10 / IW75 → 'Sheet1' if exists, else first
+    """
+    try:
+        chosen = pick_sheet(path)
+
+        if mode == 1:
+            # Read with string dtype directly to avoid double conversion
+            df = pd.read_excel(
+                path, 
+                engine="openpyxl", 
+                sheet_name=chosen, 
+                header=0, 
+                dtype=str,  # Use str for consistency
+                keep_default_na=False  # Prevents NaN creation
+            )
+            return df.fillna("")  # Just in case some NaNs slip through
+
+        elif mode == 0:
+            # Header-only read with consistent string typing
+            df = pd.read_excel(
+                path, 
+                engine="openpyxl", 
+                sheet_name=chosen, 
+                nrows=0,
+                dtype=str  # Consistent with mode 1
+            )
+            return df
+        
+        else:
+            raise ValueError(f"Invalid mode={mode}. Expected 0 (headers only) or 1 (full read).")
+
+    except FileNotFoundError:
+        raise ValueError(f"File not found: {path}")
+    except Exception as e:
+        msg = (
+            f"Error loading info from sheet '{chosen if 'chosen' in locals() else 'unknown'}'\n\n"
+            f"File: {path.name}\n\n"
+            f"Error: {str(e)}"
+        )
+        raise ValueError(msg) from e  # Preserve original exception chain
+
+
 ## FOR TESTING PURPOSES: PRINT SAMPLE DATA
-def print_sample_data(room_data, data_12nc, num_samples=3):
+def print_sample_data(room_data, data_12nc, num_samples=50):
     """Print sample data from the dictionaries"""
     print("\n" + "="*80)
     print("SAMPLE DATA")
@@ -266,58 +347,3 @@ def print_sample_data(room_data, data_12nc, num_samples=3):
         print("\nNo 12NC data found!")
 
 
-
-## MAIN FUNCTION FOR TESTING
-def main():
-    """Main function to test read_CBOM"""
-    print("="*80)
-    print("CBOM Reader Test")
-    print("="*80)
-    
-    
-    # Initialize tkinter for file dialog
-    root = Tk()
-    root.withdraw()  # Hide the main window
-    
-    # File picker
-    print("\nPlease select a CBOM Excel file...")
-    cbom_path = filedialog.askopenfilename(
-        title="Select CBOM Excel File",
-        filetypes=[
-            ("Excel files", "*.xlsx *.xls"),
-            ("All files", "*.*")
-        ]
-    )
-    
-    if not cbom_path:
-        print("No file selected. Exiting.")
-        return
-    
-    print(f"\nSelected file: {cbom_path}")
-    
-    # Read CBOM file
-    print("\nReading CBOM file...")
-    room_data, data_12nc = read_CBOM(cbom_path, config={})
-    
-    if room_data is None or data_12nc is None:
-        print("Failed to read CBOM file.")
-        return
-    
-    # Print sample data
-    print_sample_data(room_data, data_12nc, num_samples=3)
-    
-    # Summary statistics
-    print("\n" + "="*80)
-    print("SUMMARY")
-    print("="*80)
-    print(f"Total rooms processed: {len(room_data)}")
-    print(f"Total 12NCs processed: {len(data_12nc)}")
-    
-    if room_data:
-        total_relationships = sum(len(df) for df in room_data.values())
-        print(f"Total room-12NC relationships: {total_relationships}")
-    
-    print("\nTest completed successfully!")
-
-if __name__ == "__main__":
-    main()
