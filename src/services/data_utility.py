@@ -1,4 +1,5 @@
 
+from logging import config
 import pandas as pd
 import re
 import os
@@ -7,6 +8,8 @@ from pathlib import Path
 from openpyxl import load_workbook
 import logging
 from tkinter import messagebox
+import json
+
 
 def col_letter_to_index(col_letter):
     """Converts Excel column letter(s) to a zero-based index.
@@ -26,27 +29,22 @@ def col_letter_to_index(col_letter):
 
 def normalize_identifier(value):
     """
-    Normalizes 12NC numbers and Room identifiers by removing spaces, hyphens, and special characters.
-    Keeps only alphanumeric characters (letters and digits).
-    
-    Input:
-    - value: String value to normalize (12NC or Room identifier)
-    
-    Output:
-    - Normalized string with only letters and digits
-    
-    Example:
-    - "9896-061-32711" → "989606132711"
-    - " 101 A " → "101A"
-    - "Room-205" → "Room205"
+    Normalize an identifier (like room number or 12NC) by:
+    - Converting to string
+    - Removing spaces, hyphens, and underscores
+    - Stripping leading and trailing whitespace
+    input : 
+        - value: The value to normalize (can be any type, will be converted to string)
+    output:
+        - string: The normalized string with non-alphanumeric characters removed.
     """
     if pd.isna(value):
         return ""
     
     # Convert to string and remove all non-alphanumeric characters
-    normalized = re.sub(r'[^a-zA-Z0-9]', '', str(value))
+    normalized = str(value.replace(" ", "").replace("-", "").replace("_", "")).strip()
     
-    return normalized.strip()
+    return normalized
 
 
 
@@ -82,7 +80,8 @@ def find_column_by_canon(df, target_name, aliases=None):
                 return canon_to_header[alias_canon]
     
     return None
-# - File locked or open check - wrapper 
+
+
 def ensure_file_not_open(path: Path, label: str) :
     """
     Raise PermissionError if the file appears to be open/locked.
@@ -192,15 +191,24 @@ def compute_output_path(leading_path: Path) -> Path:
 
 
 
-def pick_sheet(path: Path) -> str:
+def pick_sheet(path: Path, file_type: str) -> str:
     """
-    Decide which sheet to use depending on file_type.
-    - leading: pick first sheet not named 'Summary'
-    - IH10 / IW75: force 'Sheet1' if it exists
+    For Excel files, return the sheet name to use. If "Sheet1" exists, use it. Otherwise, use the first sheet.
+    For CSV files, return a default sheet name since they have no sheets.
+    
+    input:
+        - path: Path to the file
+        - file_type: Type of file (e.g., "cbom") for error messages
+    output:
+        - string: The name of the sheet to use for processing
     """
+    # Convert to Path object if it's a string
+    if isinstance(path, str):
+        print ("This was the issue!")
+        path = Path(path)
+    
     ext = path.suffix.lower()
     sheetnames = []
-    
     try:
         if ext == ".csv":
             # CSV files have no sheets
@@ -210,6 +218,10 @@ def pick_sheet(path: Path) -> str:
             wb = load_workbook(path, read_only=True)
             sheetnames = [s.strip() for s in wb.sheetnames]
             wb.close()
+        elif ext in [".xls"]:
+            # For .xls files, use pandas to read sheet names
+            xls = pd.ExcelFile(path)
+            sheetnames = [s.strip() for s in xls.sheet_names]
         else:
             raise ValueError(f"Unsupported file format: {ext}. Only .xlsx, .xlsm, and .csv files are supported.")
     except Exception as e:
@@ -217,9 +229,16 @@ def pick_sheet(path: Path) -> str:
     
     if not sheetnames:
         raise ValueError(f"No sheets found in {path.name}")
-    for name in sheetnames:
-        if name.casefold() == "sheet1":
-            return name
+    if (file_type == "cbom") :
+        if len(sheetnames) > 1:
+            config = load_config()
+            for name in sheetnames:
+                if name.casefold() == config.get("cbom_sheet_name", "C-BoM 830234").casefold():
+                    return name
+            # If no match, show warning and raise error
+            raise ValueError(f"Could not find  target_sheet in {path.name}")
+    
+    # Default: return first sheet
     return sheetnames[0]
 
 
@@ -294,8 +313,7 @@ def load_config(config_path='config.json'):
     Output:
     - Dictionary containing configuration settings
     """
-    import json
-    
+   
     if os.path.exists(config_path):
         with open(config_path, 'r') as f:
             return json.load(f)

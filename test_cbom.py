@@ -1,6 +1,6 @@
 """Test script for CBOM reading functionality"""
 
-from src.services import read_CBOM, print_sample_data, load_config
+from src.services import read_CBOM, load_config
 from tkinter import Tk, filedialog
 
 def main():
@@ -37,8 +37,31 @@ def main():
     # Process CBOM file
     room_data, data_12nc = read_CBOM(cbom_path, config)
     
+
     if room_data is not None and data_12nc is not None:
-        print_sample_data(room_data, data_12nc, num_samples=3)
+            
+        """Print sample data from the dictionaries"""
+        print("\n" + "="*80)
+        print("SAMPLE DATA")
+        print("="*80)
+        
+        if room_data:
+            print(f"\n--- Sample Room Data (first {100} rooms) ---")
+            for i, (room_num, df) in enumerate(list(room_data.items())[:100]):
+                print(f"\nRoom: {room_num}")
+                print(df.to_string(index=False))
+        else:
+            print("\nNo room data found!")
+        
+        if data_12nc:
+            print(f"\n--- Sample 12NC Data (first {100} 12NCs) ---")
+            for i, (nc12_num, df) in enumerate(list(data_12nc.items())[:100]):
+                print(f"\n12NC: {nc12_num}")
+                print(df.to_string(index=False))
+        else:
+            print("\nNo 12NC data found!")
+
+
         print("\n" + "="*80)
         print("✓ Test completed successfully!")
         print("="*80)

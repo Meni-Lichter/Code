@@ -8,7 +8,6 @@ import sys
 from collections import OrderedDict
 import json
 import logging
-
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
@@ -17,13 +16,16 @@ logger = logging.getLogger(__name__)
 # Use relative imports for functions from data_utility
 from .data_utility import (
     col_letter_to_index,
+    file_in_use,
     normalize_identifier,
     find_column_by_canon,
-    load_config, pick_sheet
+    load_config, 
+    pick_sheet
 )
 
 # ---------- REGEX PATTERNS ----------
-KEY_REGEX = r"^\d{4} \d{3} \d{5}$" # Matches "1234 567 89123"
+# After normalization: 12 consecutive digits
+NC12_NORMALIZED_REGEX = r"^\d{12}$"
 VALUE_REGEX = r"^[A-Z]{3,4}\d+$" # Matches "ABC123", "ABCD4567", etc.
 
 
@@ -73,18 +75,23 @@ def load_dictionary(dict_path):
     for _, row in df_dict.iterrows():
         key = str(row["12NC"]).strip()
 
-        # validate key format
-        if not re.match(KEY_REGEX, key):# Matches "1234 567 89123"
-            invalid_keys.append(key)
+        normalized_key = normalize_identifier(key)
 
-        values_str = str(row["Mapped Items"]).strip() if not pd.isna(row["Mapped Items"]) else ""
-        values_list = [v.strip() for v in values_str.split(",")] if values_str else [] # Split by commas
+        if (not normalized_key) or not re.match(NC12_NORMALIZED_REGEX, normalized_key):  # Skip empty or invalid normalized keys
+            continue
 
-        for v in values_list:
-            if not re.match(VALUE_REGEX, v):# Matches "ABC123", "ABCD4567", etc.
-                invalid_values.append(v)
+        room_str = str(row["Mapped Items"]).strip() if not pd.isna(row["Mapped Items"]) else ""
+        room_list = [v.strip() for v in room_str.split(",")] if room_str else [] # Split by commas
 
-        dict_mapping[key] = values_list 
+        for room in room_list:
+            normalized_room = normalize_identifier(room)
+            if (not normalized_room) or not re.match(VALUE_REGEX, normalized_room):
+                continue
+            # If valid, we can keep the original room string (not normalized) in the list
+
+        
+
+        dict_mapping[normalized_key] = room_list
 
     errors = []
     if invalid_keys:
@@ -109,14 +116,10 @@ def read_CBOM(cbom_path, config):
     - config: Configuration dictionary with CBOM structure settings
     
     Output:
-    - room_data: Dictionary {room_number: DataFrame['12NC', '12NC_Description', 'Quantity']}
-    - data_12nc: Dictionary {12nc_number: DataFrame['Room', 'Room_Description', 'Quantity']}
+    - room_data: Dictionary {room_number: DataFrame['12NC (normalized)', '12NC (original)', '12NC_Description', 'Quantity']}
+    - data_12nc: Dictionary {12nc_number: DataFrame['Room(normalized)','Room(original)', 'Room_Description', 'Quantity']}
     """
-    # Regex pattern for valid 12NC format: ####-###-#####
-    NC12_FORMAT_REGEX = r"^\d{4}-\d{3}-\d{5}$"
-     # After normalization: 12 consecutive digits
-    NC12_NORMALIZED_REGEX = r"^\d{12}$"
-    
+      
     # Get configuration values
     room_col_start = config.get('cbom_room_col_start', 'G')
     room_num_row = config.get('cbom_room_num_row', 5)
@@ -126,9 +129,21 @@ def read_CBOM(cbom_path, config):
     nc12_row_start = config.get('cbom_12nc_row_start', 9)
     
     try:
-        # Read the Excel file without headers
-    #TODO : ADD CHECKING IF FILE IS OPEN / EXISTS BEFORE TRYING TO READ, TO AVOID UNNECESSARY ERROR POPUPS
-        df = pd.read_excel(cbom_path, header=None)
+        if not os.path.exists(cbom_path):
+            messagebox.showerror(
+                "File Not Found",
+                f"The specified CBOM file does not exist:\n{cbom_path}\n\nPlease check the file path and try again."
+            )
+            return None, None
+        if file_in_use(cbom_path):
+            messagebox.showerror(
+                "File In Use",
+                f"The specified CBOM file is currently open in another program:\n{cbom_path}\n\nPlease close the file and try again."
+            )
+            return None, None
+        
+        relevant_sheet = pick_sheet(cbom_path, "cbom")
+        df = pd.read_excel(cbom_path, sheet_name=relevant_sheet, header=None)
     except PermissionError as e:
         messagebox.showerror(
             "Permission Error",
@@ -154,7 +169,7 @@ def read_CBOM(cbom_path, config):
     nc12_row_start_idx = nc12_row_start - 1
     
     # Extract room information (starting from room_col_start)
-    room_numbers = df.iloc[room_num_row_idx, room_col_idx:].values #
+    room_numbers = df.iloc[room_num_row_idx, room_col_idx:].values 
     room_descriptions = df.iloc[room_desc_row_idx, room_col_idx:].values
     
     # Extract 12NC information (starting from nc12_row_start)
@@ -171,34 +186,27 @@ def read_CBOM(cbom_path, config):
     ############################
     # Process data for each room
     ############################
+    valid_room_count = 0
     for room_idx, room_num in enumerate(room_numbers):
         if pd.isna(room_num):
             continue
         
-        room_num_str = str(room_num).strip()
-        room_num_normalized = normalize_identifier(room_num_str)
+        room_num_normalized = normalize_identifier(room_num)
         
         if not room_num_normalized:  # Skip empty normalized values
             continue
         
-        room_desc = str(room_descriptions[room_idx]).strip() if not pd.isna(room_descriptions[room_idx]) else ""
-        
+        valid_room_count += 1 
         # Collect all 12NCs for this room
         room_12ncs = []
         for nc12_idx, nc12_num in enumerate(nc12_numbers):
             if pd.isna(nc12_num):
                 continue
-            
-            nc12_num_str = str(nc12_num).strip()
-            
-            # Validate 12NC format (####-###-#####)
-            if not re.match(NC12_FORMAT_REGEX, nc12_num_str):
-                continue
-            
-            nc12_num_normalized = normalize_identifier(nc12_num_str)
+                
+            nc12_num_normalized = normalize_identifier(nc12_num)
             
             # Validate normalized format (12 digits)
-            if not re.match(NC12_NORMALIZED_REGEX, nc12_num_normalized):
+            if (not re.match(NC12_NORMALIZED_REGEX, nc12_num_normalized)) or (not nc12_num_normalized):
                 continue
             
             quantity = quantity_matrix[nc12_idx, room_idx]
@@ -209,7 +217,7 @@ def read_CBOM(cbom_path, config):
                 
                 room_12ncs.append({
                     '12NC': nc12_num_normalized,  # Store normalized version
-                    '12NC_Original': nc12_num_str,  # Keep original for reference
+                    '12NC_Original': str(nc12_num).strip(),  # Keep original for reference
                     '12NC_Description': nc12_desc,
                     'Quantity': quantity
                 })
@@ -218,6 +226,7 @@ def read_CBOM(cbom_path, config):
         if room_12ncs:
             room_data[room_num_normalized] = pd.DataFrame(room_12ncs)
     
+
     ############################
     # Process data for each 12NC
     ############################
@@ -227,10 +236,6 @@ def read_CBOM(cbom_path, config):
             continue
         
         nc12_num_str = str(nc12_num).strip()
-        
-        # Validate 12NC format (####-###-#####)
-        if not re.match(NC12_FORMAT_REGEX, nc12_num_str):
-            continue
         
         nc12_num_normalized = normalize_identifier(nc12_num_str)
         
@@ -246,22 +251,19 @@ def read_CBOM(cbom_path, config):
         for room_idx, room_num in enumerate(room_numbers):
             if pd.isna(room_num):
                 continue
+            room_num_normalized = normalize_identifier(room_num)
+                
+            if (not room_num_normalized):  # Skip empty normalized values
+                continue
             
             quantity = quantity_matrix[nc12_idx, room_idx]
             
-            # Only include if quantity exists and is greater than 0
-            if not pd.isna(quantity) and quantity != 0:
-                room_num_str = str(room_num).strip()
-                room_num_normalized = normalize_identifier(room_num_str)
-                
-                if not room_num_normalized:  # Skip empty normalized values
-                    continue
-                
+            if not pd.isna(quantity) and quantity != 0:    
                 room_desc = str(room_descriptions[room_idx]).strip() if not pd.isna(room_descriptions[room_idx]) else ""
                 
                 nc12_rooms.append({
                     'Room': room_num_normalized,  # Store normalized version
-                    'Room_Original': room_num_str,  # Keep original for reference
+                    'Room_Original': str(room_num).strip(),  # Keep original for reference
                     'Room_Description': room_desc,
                     'Quantity': quantity
                 })
@@ -273,7 +275,8 @@ def read_CBOM(cbom_path, config):
     return room_data, data_12nc
 
 
-# Load Excel with dtype=str, fillna("") 
+
+
 def load_excel(path: Path, mode: int = 1) -> pd.DataFrame:
     """
     Read Excel files (.xlsx, .xlsm) depending on mode:
@@ -323,27 +326,5 @@ def load_excel(path: Path, mode: int = 1) -> pd.DataFrame:
         raise ValueError(msg) from e  # Preserve original exception chain
 
 
-## FOR TESTING PURPOSES: PRINT SAMPLE DATA
-def print_sample_data(room_data, data_12nc, num_samples=50):
-    """Print sample data from the dictionaries"""
-    print("\n" + "="*80)
-    print("SAMPLE DATA")
-    print("="*80)
-    
-    if room_data:
-        print(f"\n--- Sample Room Data (first {num_samples} rooms) ---")
-        for i, (room_num, df) in enumerate(list(room_data.items())[:num_samples]):
-            print(f"\nRoom: {room_num}")
-            print(df.to_string(index=False))
-    else:
-        print("\nNo room data found!")
-    
-    if data_12nc:
-        print(f"\n--- Sample 12NC Data (first {num_samples} 12NCs) ---")
-        for i, (nc12_num, df) in enumerate(list(data_12nc.items())[:num_samples]):
-            print(f"\n12NC: {nc12_num}")
-            print(df.to_string(index=False))
-    else:
-        print("\nNo 12NC data found!")
 
 
