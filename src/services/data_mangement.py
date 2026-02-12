@@ -20,7 +20,8 @@ from .data_utility import (
     normalize_identifier,
     find_column_by_canon,
     load_config, 
-    pick_sheet
+    pick_sheet,
+    read_file
 )
 
 # ---------- REGEX PATTERNS ----------
@@ -35,33 +36,14 @@ def load_dictionary(dict_path):
         key → list of values
     Validates key and value formats.
     """
-    try:
-        # Read only the sheet named '12NC_Mapping'
-        df_dict = pd.read_excel(dict_path, sheet_name="12NC_Mapping")
-    except PermissionError as e:
-        logger.error(f"Could not open the dictionary file due to a permission error: {e}")
-        messagebox.showerror(
-            "Permission Error",
-            f"Could not open the dictionary file due to a permission error:\n\n{e}\n\n"
-            "Please close the file if it is open in another program and try again."
-        )
+    config = load_config(config_path='config.json')
+    df_dict = read_file(dict_path, "dictionary",header=0)
+    if df_dict is None:
         return None
-    except ValueError as e: # Sheet not found or file not readable
-        messagebox.showerror(
-            "Error",
-            f"Could not read dictionary file:\n{e}\n\n"
-            "Please ensure the file is a valid Excel file and contains a sheet named '12NC_Mapping'."
-        )
-        return None
-    except Exception as e: # Any other read error
-        messagebox.showerror(
-            "Error",
-            f"Could not read dictionary file:\n{e}"
-        )
-        return None
-    
-    required_columns = {"12NC", "Mapped Items"}
-    if not required_columns.issubset(set(df_dict.columns)):
+
+    required_columns = config ["dictionary"].get("required_fields", ["12NC", "Mapped Items"])
+
+    if not set(required_columns).issubset(set(df_dict.columns)):
         messagebox.showerror(
             "Error",
             f"Sheet '12NC_Mapping' must contain columns: {required_columns}"
@@ -82,16 +64,14 @@ def load_dictionary(dict_path):
 
         room_str = str(row["Mapped Items"]).strip() if not pd.isna(row["Mapped Items"]) else ""
         room_list = [v.strip() for v in room_str.split(",")] if room_str else [] # Split by commas
-
+        normalized_rooms = []
         for room in room_list:
             normalized_room = normalize_identifier(room)
             if (not normalized_room) or not re.match(VALUE_REGEX, normalized_room):
                 continue
-            # If valid, we can keep the original room string (not normalized) in the list
+            normalized_rooms.append(normalized_room)
 
-        
-
-        dict_mapping[normalized_key] = room_list
+        dict_mapping[normalized_key] = normalized_rooms
 
     errors = []
     if invalid_keys:
@@ -100,14 +80,13 @@ def load_dictionary(dict_path):
         errors.append(f"Invalid values:\n" + "\n".join(invalid_values[:10]))
 
     if errors:# If there are any validation errors
-        messagebox.showerror("Validation Error", "\n\n".join(errors) + "\n\nPlease check the dictionary file.")
-        return None
+        logger.warning("\n".join(errors))
 
     return dict_mapping
 
  
 
-def read_CBOM(cbom_path, config):
+def load_cbom(cbom_path, config):
     """
     Reads the CBOM Excel file and extracts room-12NC relationships.
       
@@ -119,45 +98,18 @@ def read_CBOM(cbom_path, config):
     - room_data: Dictionary {room_number: DataFrame['12NC (normalized)', '12NC (original)', '12NC_Description', 'Quantity']}
     - data_12nc: Dictionary {12nc_number: DataFrame['Room(normalized)','Room(original)', 'Room_Description', 'Quantity']}
     """
-      
+    
     # Get configuration values
-    room_col_start = config.get('cbom_room_col_start', 'G')
-    room_num_row = config.get('cbom_room_num_row', 5)
-    room_desc_row = config.get('cbom_room_desc_row', 4)
-    nc12_col = config.get('cbom_12nc_col', 'C')
-    nc12_desc_col = config.get('cbom_12nc_desc_col', 'D')
-    nc12_row_start = config.get('cbom_12nc_row_start', 9)
+    room_col_start = config["cbom"]["columns"].get("room_start","G") 
+    room_num_row = config["cbom"]["rows"].get("room_numbers", 5)
+    room_desc_row = config["cbom"]["rows"].get("room_descriptions", 4)
+    nc12_col = config["cbom"]["columns"].get("12nc", 'C')
+    nc12_desc_col = config["cbom"]["columns"].get("12nc_description", 'D')
+    nc12_row_start = config["cbom"]["rows"].get("12nc_start", 9)
     
-    try:
-        if not os.path.exists(cbom_path):
-            messagebox.showerror(
-                "File Not Found",
-                f"The specified CBOM file does not exist:\n{cbom_path}\n\nPlease check the file path and try again."
-            )
-            return None, None
-        if file_in_use(cbom_path):
-            messagebox.showerror(
-                "File In Use",
-                f"The specified CBOM file is currently open in another program:\n{cbom_path}\n\nPlease close the file and try again."
-            )
-            return None, None
-        
-        relevant_sheet = pick_sheet(cbom_path, "cbom")
-        df = pd.read_excel(cbom_path, sheet_name=relevant_sheet, header=None)
-    except PermissionError as e:
-        messagebox.showerror(
-            "Permission Error",
-            f"Could not open the CBOM file due to a permission error:\n\n{e}\n\n"
-            "Please close the file if it is open in another program and try again."
-        )
+    df = read_file(cbom_path, "cbom" , config)
+    if df is None:
         return None, None
-    except Exception as e:
-        messagebox.showerror(
-            "Error",
-            f"Could not read CBOM file:\n{e}"
-        )
-        return None, None
-    
     
     room_col_idx = col_letter_to_index(room_col_start)
     nc12_col_idx = col_letter_to_index(nc12_col)

@@ -1,6 +1,6 @@
 """Test script for CBOM reading functionality"""
 
-from src.services import read_CBOM, load_config
+from src.services import load_cbom, load_config
 from tkinter import Tk, filedialog
 
 def main():
@@ -35,7 +35,7 @@ def main():
     print("-"*80)
     
     # Process CBOM file
-    room_data, data_12nc = read_CBOM(cbom_path, config)
+    room_data, data_12nc = load_cbom(cbom_path, config)
     
 
     if room_data is not None and data_12nc is not None:
@@ -46,16 +46,16 @@ def main():
         print("="*80)
         
         if room_data:
-            print(f"\n--- Sample Room Data (first {100} rooms) ---")
-            for i, (room_num, df) in enumerate(list(room_data.items())[:100]):
+            print(f"\n--- Sample Room Data (first {3} rooms) ---")
+            for i, (room_num, df) in enumerate(list(room_data.items())[:3]):
                 print(f"\nRoom: {room_num}")
                 print(df.to_string(index=False))
         else:
             print("\nNo room data found!")
         
         if data_12nc:
-            print(f"\n--- Sample 12NC Data (first {100} 12NCs) ---")
-            for i, (nc12_num, df) in enumerate(list(data_12nc.items())[:100]):
+            print(f"\n--- Sample 12NC Data (first {3} 12NCs) ---")
+            for i, (nc12_num, df) in enumerate(list(data_12nc.items())[:3]):
                 print(f"\n12NC: {nc12_num}")
                 print(df.to_string(index=False))
         else:

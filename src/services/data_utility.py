@@ -11,6 +11,61 @@ from tkinter import messagebox
 import json
 
 
+def read_file(path: Path, file_type:str ,header = None) -> pd.DataFrame:
+    """
+    Reads an Excel or CSV file into a DataFrame, handling different formats and errors.
+    
+    Args: 
+        path (Path): The path to the file to read.
+        file_type (str): The type of the file ('excel' or 'csv').
+        header (int, list of int, None): Row(s) to use as the column names. Defaults to None.
+    Returns:
+        pd.DataFrame: The contents of the file as a DataFrame, or None if an error occurred.
+    """
+
+    try:
+        if not os.path.exists(path):
+            messagebox.showerror(
+                "File Not Found",
+                f"The specified file does not exist:\n{path}\n\nPlease check the file path and try again."
+            )
+            return None
+        if file_in_use(path):
+            messagebox.showerror(
+                "File In Use",
+                f"The specified file is currently open in another program:\n{path}\n\nPlease close the file and try again."
+            )
+            return None
+        
+    
+        relevant_sheet = pick_sheet(path, file_type)
+        
+        if isinstance(path, str):
+            path = Path(path)
+        ext = path.suffix.lower()
+        print (f"Using sheet: {relevant_sheet} from file: {path.name}")
+        if ext == ".csv":
+            df = pd.read_csv(path, header=header)
+        elif ext in [".xlsx", ".xlsm"]: 
+            df = pd.read_excel(path, sheet_name=relevant_sheet, header=header, engine='openpyxl')
+        elif ext in [".xls"]:
+            df = pd.read_excel(path, sheet_name=relevant_sheet, header=header)
+            print ("read .xls file with pandas")
+        else:
+            raise ValueError(f"Unsupported file format: {ext}. Only .xlsx, .xlsm, and .csv files are supported.")
+        print (f"DataFrame shape: {df.shape}") # Debug print
+        return df
+    
+    except Exception as e:
+        messagebox.showerror(
+            "Error",
+            f"Could not read file:\n{e}"
+        )
+        return None
+
+
+
+
 def col_letter_to_index(col_letter):
     """Converts Excel column letter(s) to a zero-based index.
     Args:
@@ -204,7 +259,6 @@ def pick_sheet(path: Path, file_type: str) -> str:
     """
     # Convert to Path object if it's a string
     if isinstance(path, str):
-        print ("This was the issue!")
         path = Path(path)
     
     ext = path.suffix.lower()
@@ -231,13 +285,22 @@ def pick_sheet(path: Path, file_type: str) -> str:
         raise ValueError(f"No sheets found in {path.name}")
     if (file_type == "cbom") :
         if len(sheetnames) > 1:
-            config = load_config()
+            config = load_config(config_path='config.json')
+            target_sheet = config["cbom"]["target_sheet"].get("name", "C-BoM 830234")
             for name in sheetnames:
-                if name.casefold() == config.get("cbom_sheet_name", "C-BoM 830234").casefold():
+                if name.casefold() == target_sheet.casefold():
                     return name
             # If no match, show warning and raise error
             raise ValueError(f"Could not find  target_sheet in {path.name}")
-    
+    if file_type == "dictionary" :
+        if len(sheetnames) > 1:
+            config = load_config(config_path='config.json')
+            target_sheet = config["dictionary"]["target_sheet"].get("name", "12NC_Mapping")
+            for name in sheetnames:
+                if name.casefold() == target_sheet.casefold():
+                    return name
+            # If no match, show warning and raise error
+            raise ValueError(f"Could not find required sheet '{target_sheet}' in {path.name}")
     # Default: return first sheet
     return sheetnames[0]
 

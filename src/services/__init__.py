@@ -16,7 +16,7 @@ from .data_utility import (
 
 
 from .data_mangement import (
-    read_CBOM,
+    load_cbom,
     load_excel,
     load_dictionary
     
@@ -32,5 +32,5 @@ __all__ = [
     'is_blank',
     'load_config',
     # Data management
-    'read_CBOM'
+    'load_cbom'
 ]
