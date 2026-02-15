@@ -1,7 +1,7 @@
 """Test script for dictionary loading functionality"""
 
 from src.services.data_mangement import load_dictionary
-from src.services.data_utility import load_config
+from src.services.data_util import load_config
 from tkinter import Tk, filedialog
 import json
 

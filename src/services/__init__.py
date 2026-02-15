@@ -1,6 +1,6 @@
 """Services package - data processing and utilities"""
 
-from .data_utility import (
+from .data_util import (
     col_letter_to_index,
     normalize_identifier,
     find_column_by_canon,
@@ -17,7 +17,7 @@ from .data_utility import (
 
 from .data_mangement import (
     load_cbom,
-    load_tabular,
+    read_file,
     load_dictionary
     
 )
@@ -33,6 +33,6 @@ __all__ = [
     'load_config',
     # Data management
     'load_cbom',
-    'load_tabular',
+    'read_file',
     'load_dictionary'
 ]

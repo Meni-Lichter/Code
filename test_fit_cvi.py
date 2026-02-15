@@ -1,47 +1,45 @@
-"""Test script for generic file reading functionality"""
+"""Test script for FIT_CVI reading functionality"""
 
 from src.services.data_util import read_file, load_config
-from src.services.data_mangement import load_dictionary
 from tkinter import Tk, filedialog
 from pathlib import Path
 
 def main():
     print("="*80)
-    print("Read File Test - YMBD")
+    print("FIT_CVI Reader Test")
     print("="*80)
     
     # Load configuration
     config = load_config('config.json')
     print("\nConfiguration loaded successfully")
+    print("\nFIT_CVI Settings:")
+    fit_cvi_config = config.get('fit_cvi', {})
+    for key, value in fit_cvi_config.items():
+        print(f"  {key}: {value}")
     
     # Initialize file picker
     root = Tk()
     root.withdraw()
     
-    print("\nPlease select a YMBD Excel file...")
-    file_path = filedialog.askopenfilename(
-        title="Select YMBD Excel File",
-        filetypes=[
-            ("Excel files", "*.xlsx *.xls *.xlsm"),
-            ("All files", "*.*")
-        ]
+    print("\n" + "-"*80)
+    print("Please select a FIT_CVI Excel file...")
+    fit_cvi_path = filedialog.askopenfilename(
+        title="Select FIT_CVI Excel File",
+        filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")]
     )
     
-    if not file_path:
+    if not fit_cvi_path:
         print("No file selected. Exiting.")
         return
     
-    print(f"\nSelected file: {file_path}")
+    print(f"\nReading file: {fit_cvi_path}")
+    print("-"*80)
     
-    # Convert to Path object
-    file_path = Path(file_path)
-    
-    # Test with header=0 (first row as headers)
-    print("\n--- Test 1: Reading with header=0 (first row as column names) ---")
-    df = read_file(file_path, file_type="ymbd", header=0)
+    # Process FIT_CVI file
+    df = read_file(fit_cvi_path, file_type="fit_cvi", header=0)
     
     if df is not None:
-        print(f"✓ Successfully read file")
+        print(f"\n✓ Successfully read file")
         print(f"  Shape: {df.shape} (rows: {df.shape[0]}, columns: {df.shape[1]})")
         print(f"  Columns: {list(df.columns)}")
         
@@ -57,18 +55,15 @@ def main():
             print(f"Numeric columns found: {list(numeric_cols)}")
             print(df[numeric_cols].describe())
         
-        # Check for expected YMBD columns
+        # Check for expected FIT_CVI columns
         print("\n--- Column Validation ---")
-        ymbd_config = config.get('ymbd', {})
-        expected_cols = ymbd_config.get('columns', {})
-        
+        expected_cols = fit_cvi_config.get('columns', {})
         if expected_cols:
             print("Expected columns from config:")
             for key, col_name in expected_cols.items():
                 exists = col_name in df.columns
                 status = "✓" if exists else "✗"
                 print(f"  {status} {key}: '{col_name}'")
-        
         print("\n✓ Test completed successfully!")
     else:
         print("\n✗ Failed to read file")
@@ -76,7 +71,7 @@ def main():
     # Test with header=None (no headers)
     print("\n" + "="*80)
     print("--- Test 2: Reading with header=None (no column names) ---")
-    df_no_header = read_file(file_path, file_type="ymbd", header=None)
+    df_no_header = read_file(fit_cvi_path, file_type="fit_cvi", header=None)
     
     if df_no_header is not None:
         print(f"✓ Successfully read file without headers")

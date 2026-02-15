@@ -1,15 +1,12 @@
-
-from logging import config
 import pandas as pd
-import re
 import os
 from datetime import datetime
 from pathlib import Path
 from openpyxl import load_workbook
 import logging
 from tkinter import messagebox
-import json
 
+from .config_util import load_config
 
 def read_file(path: Path, file_type:str ,header = None) -> pd.DataFrame:
     """
@@ -22,7 +19,7 @@ def read_file(path: Path, file_type:str ,header = None) -> pd.DataFrame:
     Returns:
         pd.DataFrame: The contents of the file as a DataFrame, or None if an error occurred.
     """
-
+    err_count = 0 
     try:
         if not os.path.exists(path):
             messagebox.showerror(
@@ -55,8 +52,8 @@ def read_file(path: Path, file_type:str ,header = None) -> pd.DataFrame:
         else:
             raise ValueError(f"Unsupported file format: {ext}. Only .xlsx, .xlsm, and .csv files are supported.")
 
-        print(f"DataFrame shape: {df.shape}")
-        
+        print(f"#######DataFrame shape: {df.shape}#########")
+        config = load_config(config_path='config.json')
         required_columns = config[file_type].get("required_fields", [])
 
         if not set(required_columns).issubset(set(df.columns)):
@@ -69,6 +66,8 @@ def read_file(path: Path, file_type:str ,header = None) -> pd.DataFrame:
         return df
     
     except Exception as e:
+        err_count += 1
+        print(f"Error reading file: {err_count} - {e}")
         messagebox.showerror(
             "Error",
             f"Could not read file:\n{e}"
@@ -313,6 +312,15 @@ def pick_sheet(path: Path, file_type: str) -> str:
                     return name
             # If no match, show warning and raise error
             raise ValueError(f"Could not find required sheet '{target_sheet}' in {path.name}")
+    if file_type == "fit_cvi" :
+        if len(sheetnames) > 1:
+            config = load_config(config_path='config.json')
+            target_sheet = config["fit_cvi"]["target_sheet"].get("name", "FIT_CVI")
+            for name in sheetnames:
+                if name.casefold() == target_sheet.casefold():
+                    return name
+            # If no match, show warning and raise error
+            raise ValueError(f"Could not find required sheet '{target_sheet}' in {path.name}")
     # Default: return first sheet
     return sheetnames[0]
 
@@ -378,31 +386,5 @@ def is_blank(val, blank_tokens) -> bool:
     return s.casefold() in {t.casefold() for t in blank_tokens}
 
 
-def load_config(config_path='config.json'):
-    """
-    Load configuration from JSON file, or create default if not exists
-    
-    Input:
-    - config_path: Path to config JSON file (default: 'config.json')
-    
-    Output:
-    - Dictionary containing configuration settings
-    """
-   
-    if os.path.exists(config_path):
-        with open(config_path, 'r') as f:
-            return json.load(f)
-    else:
-        # Create default config
-        default_config = {
-            'cbom_room_col_start': 'G',
-            'cbom_room_num_row': 5,
-            'cbom_room_desc_row': 4,
-            'cbom_12nc_col': 'C',
-            'cbom_12nc_desc_col': 'D',
-            'cbom_12nc_row_start': 9
-        }
-        with open(config_path, 'w') as f:
-            json.dump(default_config, f, indent=4)
-        print(f"Created default config file: {config_path}")
-        return default_config
+
+

@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Use relative imports for functions from data_utility
-from .data_utility import (
+from .data_util import (
     col_letter_to_index,
     file_in_use,
     normalize_identifier,
