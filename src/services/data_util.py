@@ -303,19 +303,19 @@ def pick_sheet(path: Path, file_type: str) -> str:
                     return name
             # If no match, show warning and raise error
             raise ValueError(f"Could not find  target_sheet in {path.name}")
-    if file_type == "dictionary" :
+    if file_type == "fit_cvi" :
         if len(sheetnames) > 1:
             config = load_config(config_path='config.json')
-            target_sheet = config["dictionary"]["target_sheet"].get("name", "12NC_Mapping")
+            target_sheet = config["fit_cvi"]["target_sheet"].get("name", "FIT_CVI")
             for name in sheetnames:
                 if name.casefold() == target_sheet.casefold():
                     return name
             # If no match, show warning and raise error
             raise ValueError(f"Could not find required sheet '{target_sheet}' in {path.name}")
-    if file_type == "fit_cvi" :
+    if file_type == "ymbd" :
         if len(sheetnames) > 1:
             config = load_config(config_path='config.json')
-            target_sheet = config["fit_cvi"]["target_sheet"].get("name", "FIT_CVI")
+            target_sheet = config["ymbd"]["target_sheet"].get("name", "YMBD")
             for name in sheetnames:
                 if name.casefold() == target_sheet.casefold():
                     return name

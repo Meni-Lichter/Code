@@ -34,22 +34,3 @@ def save_config(config: dict, config_path: str = "config.json") -> None:
     with open(config_path, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
     print(f"Configuration saved to {config_path}")
-
-def update_relevant_rooms(rooms: List[str], config_path: str = "config.json") -> None:
-    """
-    Update the relevant_rooms list in the config file.
-    
-    Args:
-        rooms: List of room codes (e.g., ['FIT4404', 'FIT4405'])
-        config_path: Path to the config file
-    """
-    config = load_config(config_path)
-    
-    # Remove duplicates and sort
-    unique_rooms = sorted(set(rooms))
-    
-    config["relevant_rooms"]["rooms"] = unique_rooms
-    
-    save_config(config, config_path)
-    print(f"Updated relevant_rooms with {len(unique_rooms)} rooms")
-

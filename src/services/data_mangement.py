@@ -1,18 +1,12 @@
+##
+#Data management functions for the Room-12NC Performance Center application
+##
+
+# Standard library imports
 import pandas as pd
 import tkinter as tk
-from tkinter import Tk, filedialog, messagebox, simpledialog
-import os
 import re
-from datetime import datetime
-import sys
-from collections import OrderedDict
-import json
 import logging
-from pathlib import Path
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 # Use relative imports for functions from data_utility
 from .data_util import (
     col_letter_to_index,
@@ -24,58 +18,10 @@ from .data_util import (
     read_file
 )
 
-# ---------- REGEX PATTERNS ----------
-# After normalization: 12 consecutive digits
-NC12_NORMALIZED_REGEX = r"^\d{12}$"
-VALUE_REGEX = r"^[A-Z]{3,4}\d+$" # Matches "ABC123", "ABCD4567", etc.
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-def load_dictionary(dict_path):
-    """
-    Loads dictionary Excel from sheet named '12NC_Mapping' into a mapping:
-        key → list of values
-    Validates key and value formats.
-    """
-    config = load_config(config_path='config.json')
-    df_dict = read_file(dict_path, "dictionary",header=0)
-    if df_dict is None:
-        return None
-
-    dict_mapping = {}
-    invalid_keys = []
-    invalid_values = []
-
-    for _, row in df_dict.iterrows():
-        key = str(row["12NC"]).strip()
-
-        normalized_key = normalize_identifier(key)
-
-        if (not normalized_key) or not re.match(NC12_NORMALIZED_REGEX, normalized_key):  # Skip empty or invalid normalized keys
-            continue
-
-        room_str = str(row["Mapped Items"]).strip() if not pd.isna(row["Mapped Items"]) else ""
-        room_list = [v.strip() for v in room_str.split(",")] if room_str else [] # Split by commas
-        normalized_rooms = []
-        for room in room_list:
-            normalized_room = normalize_identifier(room)
-            if (not normalized_room) or not re.match(VALUE_REGEX, normalized_room):
-                continue
-            normalized_rooms.append(normalized_room)
-
-        dict_mapping[normalized_key] = normalized_rooms
-
-    errors = []
-    if invalid_keys:
-        errors.append(f"Invalid keys:\n" + "\n".join(invalid_keys[:10]))
-    if invalid_values:
-        errors.append(f"Invalid values:\n" + "\n".join(invalid_values[:10]))
-
-    if errors:# If there are any validation errors
-        logger.warning("\n".join(errors))
-
-    return dict_mapping
-
- 
 
 def load_cbom(cbom_path, config):
     """
@@ -98,7 +44,7 @@ def load_cbom(cbom_path, config):
     nc12_desc_col = config["cbom"]["columns"].get("12nc_description", 'D')
     nc12_row_start = config["cbom"]["rows"].get("12nc_start", 9)
     
-    df = read_file(cbom_path, "cbom" , config)
+    df = read_file(cbom_path, "cbom" , header=None)
     if df is None:
         return None, None
     
@@ -149,7 +95,7 @@ def load_cbom(cbom_path, config):
             nc12_num_normalized = normalize_identifier(nc12_num)
             
             # Validate normalized format (12 digits)
-            if (not re.match(NC12_NORMALIZED_REGEX, nc12_num_normalized)) or (not nc12_num_normalized):
+            if (not re.match(config["validation"]["patterns"]["12nc_normalized"], nc12_num_normalized)) or (not nc12_num_normalized):
                 continue
             
             quantity = quantity_matrix[nc12_idx, room_idx]
@@ -183,7 +129,7 @@ def load_cbom(cbom_path, config):
         nc12_num_normalized = normalize_identifier(nc12_num_str)
         
         # Validate normalized format (12 digits)
-        if not re.match(NC12_NORMALIZED_REGEX, nc12_num_normalized):
+        if not re.match(config["validation"]["patterns"]["12nc_normalized"], nc12_num_normalized):
             continue
         
         valid_12nc_count += 1

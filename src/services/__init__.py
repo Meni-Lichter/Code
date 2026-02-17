@@ -17,8 +17,7 @@ from .data_util import (
 
 from .data_mangement import (
     load_cbom,
-    read_file,
-    load_dictionary
+    read_file
     
 )
 
@@ -34,5 +33,4 @@ __all__ = [
     # Data management
     'load_cbom',
     'read_file',
-    'load_dictionary'
 ]

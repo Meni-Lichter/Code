@@ -1,7 +1,6 @@
 """Test script for generic file reading functionality"""
 
 from src.services.data_util import read_file, load_config
-from src.services.data_mangement import load_dictionary
 from tkinter import Tk, filedialog
 from pathlib import Path
 
