@@ -1,6 +1,7 @@
 """Test script for CBOM reading functionality"""
 
-from src.services import load_cbom, load_config
+from src.infrastructure import load_cbom
+from src.utils import load_config
 from tkinter import Tk, filedialog
 
 def main():

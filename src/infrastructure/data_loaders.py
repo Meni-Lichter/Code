@@ -1,21 +1,18 @@
-##
-#Data management functions for the Room-12NC Performance Center application
-##
-
 # Standard library imports
-import pandas as pd
-import tkinter as tk
 import re
+import os
+import pandas as pd
 import logging
-# Use relative imports for functions from data_utility
-from ..utils.data_util import (
+from pathlib import Path
+from tkinter import messagebox
+# Use relative imports for utility functions
+from ..utils import (
     col_letter_to_index,
     file_in_use,
     normalize_identifier,
     find_column_by_canon,
     load_config, 
-    pick_sheet,
-    read_file
+    pick_sheet
 )
 
 
@@ -163,6 +160,76 @@ def load_cbom(cbom_path, config):
     
     return room_data, data_12nc
 
+
+
+def read_file(path: Path, file_type:str ,header = None) -> pd.DataFrame:
+    """
+    Reads an Excel or CSV file into a DataFrame, handling different formats and errors.
+    Ment primailty to be used for reading FIT_CVI files but can be used for other file types as well with appropriate configuration.
+    
+    Args: 
+        path (Path): The path to the file to read.
+        file_type (str): The type of the file ('excel' or 'csv').
+        header (int, list of int, None): Row(s) to use as the column names. Defaults to None.
+    Returns:
+        pd.DataFrame: The contents of the file as a DataFrame, or None if an error occurred.
+    """
+    err_count = 0 
+    try:
+        if not os.path.exists(path):
+            messagebox.showerror(
+                "File Not Found",
+                f"The specified file does not exist:\n{path}\n\nPlease check the file path and try again."
+            )
+            return None
+        if file_in_use(path):
+            messagebox.showerror(
+                "File In Use",
+                f"The specified file is currently open in another program:\n{path}\n\nPlease close the file and try again."
+            )
+            return None
+        
+        # Load configuration for required fields and sheet names
+        config = load_config(config_path='config.json')
+
+        if isinstance(path, str):
+            path = Path(path)
+        ext = path.suffix.lower()
+    
+        relevant_sheet = pick_sheet(path, file_type,config)
+        print (f"Using sheet: {relevant_sheet} from file: {path.name}")
+
+        # Read file based on extension
+        if ext == ".csv":
+            df = pd.read_csv(path, header=header)
+        elif ext in [".xlsx", ".xlsm"]: 
+            df = pd.read_excel(path, sheet_name=relevant_sheet, header=header, engine='openpyxl')
+        elif ext in [".xls"]:
+            df = pd.read_excel(path, sheet_name=relevant_sheet, header=header,engine='xlrd')
+            print ("read .xls file with pandas")
+        else:
+            raise ValueError(f"Unsupported file format: {ext}. Only .xlsx, .xlsm, and .csv files are supported.")
+
+        print(f"#######DataFrame shape: {df.shape}#########")
+        required_columns = config[file_type].get("required_fields", [])
+
+        if not set(required_columns).issubset(set(df.columns)):
+            messagebox.showerror(
+                "Error",
+                f"Sheet '{relevant_sheet}' must contain columns: {required_columns}"
+            )
+            return None
+
+        return df
+    
+    except Exception as e:
+        err_count += 1
+        print(f"Error reading file: {err_count} - {e}")
+        messagebox.showerror(
+            "Error",
+            f"Could not read file:\n{e}"
+        )
+        return None
 
 
 
