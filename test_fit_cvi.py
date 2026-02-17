@@ -1,6 +1,6 @@
 """Test script for FIT_CVI reading functionality"""
 
-from src.services.data_util import read_file, load_config
+from src.utils.data_util import read_file, load_config
 from tkinter import Tk, filedialog
 from pathlib import Path
 

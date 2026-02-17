@@ -5,7 +5,8 @@ from pathlib import Path
 from openpyxl import load_workbook
 import logging
 from tkinter import messagebox
-
+from datetime import datetime, date
+from dateutil.relativedelta import relativedelta
 from .config_util import load_config
 
 def read_file(path: Path, file_type:str ,header = None) -> pd.DataFrame:
@@ -34,11 +35,14 @@ def read_file(path: Path, file_type:str ,header = None) -> pd.DataFrame:
             )
             return None
         
+        # Load configuration for required fields and sheet names
+        config = load_config(config_path='config.json')
+
         if isinstance(path, str):
             path = Path(path)
         ext = path.suffix.lower()
     
-        relevant_sheet = pick_sheet(path, file_type)
+        relevant_sheet = pick_sheet(path, file_type,config)
         print (f"Using sheet: {relevant_sheet} from file: {path.name}")
 
         # Read file based on extension
@@ -53,7 +57,6 @@ def read_file(path: Path, file_type:str ,header = None) -> pd.DataFrame:
             raise ValueError(f"Unsupported file format: {ext}. Only .xlsx, .xlsm, and .csv files are supported.")
 
         print(f"#######DataFrame shape: {df.shape}#########")
-        config = load_config(config_path='config.json')
         required_columns = config[file_type].get("required_fields", [])
 
         if not set(required_columns).issubset(set(df.columns)):
@@ -257,7 +260,7 @@ def compute_output_path(leading_path: Path) -> Path:
 
 
 
-def pick_sheet(path: Path, file_type: str) -> str:
+def pick_sheet(path: Path, file_type: str, config: dict) -> str:
     """
     For Excel files, return the sheet name to use. If "Sheet1" exists, use it. Otherwise, use the first sheet.
     For CSV files, return a default sheet name since they have no sheets.
@@ -268,7 +271,7 @@ def pick_sheet(path: Path, file_type: str) -> str:
     output:
         - string: The name of the sheet to use for processing
     """
-    # Convert to Path object if it's a string
+     # Convert to Path object if it's a string
     if isinstance(path, str):
         path = Path(path)
     
@@ -296,7 +299,6 @@ def pick_sheet(path: Path, file_type: str) -> str:
         raise ValueError(f"No sheets found in {path.name}")
     if (file_type == "cbom") :
         if len(sheetnames) > 1:
-            config = load_config(config_path='config.json')
             target_sheet = config["cbom"]["target_sheet"].get("name", "C-BoM 830234")
             for name in sheetnames:
                 if name.casefold() == target_sheet.casefold():
@@ -305,7 +307,6 @@ def pick_sheet(path: Path, file_type: str) -> str:
             raise ValueError(f"Could not find  target_sheet in {path.name}")
     if file_type == "fit_cvi" :
         if len(sheetnames) > 1:
-            config = load_config(config_path='config.json')
             target_sheet = config["fit_cvi"]["target_sheet"].get("name", "FIT_CVI")
             for name in sheetnames:
                 if name.casefold() == target_sheet.casefold():
@@ -314,7 +315,6 @@ def pick_sheet(path: Path, file_type: str) -> str:
             raise ValueError(f"Could not find required sheet '{target_sheet}' in {path.name}")
     if file_type == "ymbd" :
         if len(sheetnames) > 1:
-            config = load_config(config_path='config.json')
             target_sheet = config["ymbd"]["target_sheet"].get("name", "YMBD")
             for name in sheetnames:
                 if name.casefold() == target_sheet.casefold():
@@ -386,5 +386,39 @@ def is_blank(val, blank_tokens) -> bool:
     return s.casefold() in {t.casefold() for t in blank_tokens}
 
 
+def get_period_key(dt: date, granularity: str) -> str:
+    """Generate period key based on granularity"""
+    if granularity == "daily":
+        return dt.strftime("%Y-%m-%d")
+    elif granularity == "weekly":
+        year, week, _ = dt.isocalendar()
+        return f"{year}-W{week:02d}"
+    elif granularity == "monthly":
+        return dt.strftime("%Y-%m")
+    elif granularity == "quarterly":
+        quarter = (dt.month - 1) // 3 + 1
+        return f"{dt.year}-Q{quarter}"
+    else:  # yearly
+        return str(dt.year)
 
+def get_next_period_label(granularity: str) -> str:
+    """Generate label for next period"""
+    now = datetime.now()
+    
+    if granularity == "monthly":
+        next_month = now + relativedelta(months=1)
+        return next_month.strftime("%Y-%m")
+    elif granularity == "quarterly":
+        next_quarter = ((now.month - 1) // 3 + 1) % 4 + 1
+        year = now.year if next_quarter > 1 else now.year + 1
+        return f"{year}-Q{next_quarter}"
+    elif granularity == "yearly":
+        return str(now.year + 1)
+    elif granularity == "weekly":
+        next_week = now + relativedelta(weeks=1)
+        year, week, _ = next_week.isocalendar()
+        return f"{year}-W{week:02d}"
+    else:
+        next_day = now + relativedelta(days=1)
+        return next_day.strftime("%Y-%m-%d")
 

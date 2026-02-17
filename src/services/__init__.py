@@ -1,6 +1,6 @@
 """Services package - data processing and utilities"""
 
-from .data_util import (
+from ..utils.data_util import (
     col_letter_to_index,
     normalize_identifier,
     find_column_by_canon,
@@ -15,7 +15,7 @@ from .data_util import (
 )
 
 
-from .data_mangement import (
+from ..data.data_mangement import (
     load_cbom,
     read_file
     
