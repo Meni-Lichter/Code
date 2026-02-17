@@ -8,7 +8,7 @@ from typing import Dict, Any
 import os
 
 
-def load_config(config_path: str = 'config.json') -> Dict[str, Any]:
+def load_config(config_path: str = 'config/config.json') -> Dict[str, Any]:
     """
     Load configuration from a JSON file.
     
@@ -36,7 +36,7 @@ def load_config(config_path: str = 'config.json') -> Dict[str, Any]:
     if not config_path.exists():
         raise FileNotFoundError(
             f"Configuration file not found: {config_path}\n"
-            f"Please ensure 'config.json' exists in the project root directory."
+            f"Please ensure 'config/config.json' exists in the config directory."
         )
     
     # Load and parse JSON
@@ -55,7 +55,7 @@ def load_config(config_path: str = 'config.json') -> Dict[str, Any]:
         raise Exception(f"Error loading configuration file: {str(e)}")
 
 
-def save_config(config: Dict[str, Any], config_path: str = 'config.json') -> None:
+def save_config(config: Dict[str, Any], config_path: str = 'config/config.json') -> None:
     """
     Save configuration to a JSON file.
     

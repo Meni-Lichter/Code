@@ -11,7 +11,7 @@ def main():
     print("="*80)
     
     # Load configuration
-    config = load_config('config.json')
+    config = load_config('config/config.json')
     print("\nConfiguration loaded successfully")
     print("\nFIT_CVI Settings:")
     fit_cvi_config = config.get('fit_cvi', {})

@@ -10,7 +10,7 @@ def main():
     print("="*80)
     
     # Load configuration
-    config = load_config('config.json')
+    config = load_config('config/config.json')
     print("\nConfiguration loaded successfully")
     print("\nCBOM Settings:")
     for key, value in config.items():

@@ -190,7 +190,7 @@ def read_file(path: Path, file_type:str ,header = None) -> pd.DataFrame:
             return None
         
         # Load configuration for required fields and sheet names
-        config = load_config(config_path='config.json')
+        config = load_config(config_path='config/config.json')
 
         if isinstance(path, str):
             path = Path(path)
