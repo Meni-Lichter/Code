@@ -15,7 +15,7 @@ class Room12NCMap:
     def has_12nc(self, twelve_nc: str) -> bool:
         """Check if room contains specific 12NC"""
         return twelve_nc in self.twelve_ncs 
-    def show_12ncs(self) -> str:
+    def show_12ncs(self) -> None:
         print (f"Room: {self.room} contains the following 12NCs:")
         for nc, qty in self.twelve_ncs.items():
             print(f"12NC: {nc}, Quantity: {qty}")
@@ -36,7 +36,7 @@ class TwelveNCRoomMap:
         """Check if 12NC is in specific room"""
         return room in self.rooms
     
-    def show_rooms(self) -> str:
+    def show_rooms(self) -> None:
         print (f"12NC: {self.twelve_nc} is found in the following rooms:")
         for room, qty in self.rooms.items():
             print(f"Room: {room}, Quantity: {qty}")

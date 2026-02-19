@@ -15,8 +15,8 @@ def normalize_identifier(value):
     if pd.isna(value):
         return ""
     
-    # Convert to string and remove all non-alphanumeric characters
-    normalized = str(value.replace(" ", "").replace("-", "").replace("_", "")).strip()
+    # Convert to string first, then remove all non-alphanumeric characters
+    normalized = str(value).replace(" ", "").replace("-", "").replace("_", "").strip()
     
     return normalized
 

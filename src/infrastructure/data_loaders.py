@@ -184,7 +184,7 @@ def load_cbom(cbom_path, config):
 def read_file(path: Path, file_type: str, header=None) -> pd.DataFrame | None:
     """
     Reads an Excel or CSV file into a DataFrame, handling different formats and errors.
-    Ment primailty to be used for reading FIT_CVI files but can be used for other file types as well with appropriate configuration.
+    Meant primarily to be used for reading FIT_CVI files but can be used for other file types as well with appropriate configuration.
 
     Args:
         path (Path): The path to the file to read.

@@ -14,9 +14,14 @@ def main():
     config = load_config("config/config.json")
     print("\nConfiguration loaded successfully")
     print("\nCBOM Settings:")
-    for key, value in config.items():
-        if key.startswith("cbom_"):
-            print(f"  {key}: {value}")
+
+    # Display CBOM configuration properly
+    cbom_config = config.get("cbom", {})
+    if cbom_config:
+        print(f"  Description: {cbom_config.get('description', 'N/A')}")
+        print(f"  Columns: {cbom_config.get('columns', {})}")
+        print(f"  Rows: {cbom_config.get('rows', {})}")
+        print(f"  Target Sheet: {cbom_config.get('target_sheet', {})}")
 
     # Initialize file picker
     root = Tk()
@@ -24,10 +29,20 @@ def main():
 
     print("\n" + "-" * 80)
     print("Please select a CBOM Excel file...")
-    cbom_path = filedialog.askopenfilename(
-        title="Select CBOM Excel File",
-        filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")],
-    )
+
+    try:
+        cbom_path = filedialog.askopenfilename(
+            title="Select CBOM Excel File",
+            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")],
+        )
+    except Exception as e:
+        print(f"\nError opening file dialog: {e}")
+        return
+    finally:
+        try:
+            root.destroy()
+        except:
+            pass
 
     if not cbom_path:
         print("No file selected. Exiting.")
