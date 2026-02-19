@@ -1,8 +1,29 @@
 """Test script for CBOM reading functionality"""
 
+from logging import root
+
+from pathlib import Path
+from typing import List, Optional
+
 from src.infrastructure import load_cbom
 from src.utils import load_config
 from tkinter import Tk, filedialog
+
+
+def pick_file():
+    root = Tk()
+    root.withdraw()  # hide main window
+    root.attributes("-topmost", True)  # bring dialog to front
+    root.update()  # ensure it becomes active
+
+    path = filedialog.askopenfilename(title="Select a file", filetypes=[("All files", "*.*")])
+
+    root.destroy()
+
+    if not path:  # '' means dialog returned nothing (cancel or failed)
+        raise RuntimeError("No file selected (dialog returned empty path).")
+
+    return path
 
 
 def main():
@@ -23,18 +44,12 @@ def main():
         print(f"  Rows: {cbom_config.get('rows', {})}")
         print(f"  Target Sheet: {cbom_config.get('target_sheet', {})}")
 
-    # Initialize file picker
-    root = Tk()
-    root.withdraw()
-
     print("\n" + "-" * 80)
     print("Please select a CBOM Excel file...")
 
     try:
-        cbom_path = filedialog.askopenfilename(
-            title="Select CBOM Excel File",
-            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")],
-        )
+        cbom_path = pick_file()
+
     except Exception as e:
         print(f"\nError opening file dialog: {e}")
         return
@@ -51,6 +66,8 @@ def main():
     print(f"\nReading file: {cbom_path}")
     print("-" * 80)
 
+    if isinstance(cbom_path, str):
+        cbom_path = Path(cbom_path)
     # Process CBOM file
     room_data, data_12nc = load_cbom(cbom_path, config)
 

@@ -1,0 +1,25 @@
+{
+    "include": [
+        "src",
+        "test_*.py",
+        "tests"
+    ],
+    "exclude": [
+        "**/.venv",
+        "**/__pycache__",
+        "**/node_modules",
+        "**/.*"
+    ],
+    "ignore": [
+        ".venv/**",
+        "**/__pycache__"
+    ],
+    "typeCheckingMode": "basic",
+    "reportAttributeAccessIssue": "none",
+    "reportMissingImports": "warning",
+    "reportMissingTypeStubs": false,
+    "reportUnknownMemberType": "none",
+    "reportUnknownVariableType": "none",
+    "pythonVersion": "3.13",
+    "pythonPlatform": "Windows"
+}
