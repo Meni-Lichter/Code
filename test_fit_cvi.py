@@ -40,7 +40,7 @@ def main():
     df = read_file(fit_cvi_path, file_type="fit_cvi", header=0)
     
     if df is not None:
-        print(f"\n✓ Successfully read file")
+        print(f"\n[OK] Successfully read file")
         print(f"  Shape: {df.shape} (rows: {df.shape[0]}, columns: {df.shape[1]})")
         print(f"  Columns: {list(df.columns)}")
         
@@ -63,11 +63,11 @@ def main():
             print("Expected columns from config:")
             for key, col_name in expected_cols.items():
                 exists = col_name in df.columns
-                status = "✓" if exists else "✗"
+                status = "[OK]" if exists else "[MISSING]"
                 print(f"  {status} {key}: '{col_name}'")
-        print("\n✓ Test completed successfully!")
+        print("\n[OK] Test completed successfully!")
     else:
-        print("\n✗ Failed to read file")
+        print("\n[ERROR] Failed to read file")
     
     # Test with header=None (no headers)
     print("\n" + "="*80)
@@ -75,7 +75,7 @@ def main():
     df_no_header = read_file(fit_cvi_path, file_type="fit_cvi", header=None)
     
     if df_no_header is not None:
-        print(f"✓ Successfully read file without headers")
+        print(f"[OK] Successfully read file without headers")
         print(f"  Shape: {df_no_header.shape}")
         print(f"  Columns: {list(df_no_header.columns)}")
         print("\n--- First 3 Rows ---")

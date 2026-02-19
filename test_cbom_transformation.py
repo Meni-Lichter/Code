@@ -132,7 +132,7 @@ def test_data_consistency(room_data, data_12nc, room_mappings, nc12_mappings):
             print(f"\nRoom '{check_room}':")
             print(f"  Raw 12NCs count: {raw_count}")
             print(f"  Mapped 12NCs count: {mapped_count}")
-            print(f"  ✓ Data preserved" if raw_count == mapped_count else f"  ⚠ Data filtered")
+            print(f"  [OK] Data preserved" if raw_count == mapped_count else f"  [WARNING] Data filtered")
 
 def main():
     print("="*80)
@@ -141,7 +141,7 @@ def main():
     
     # Load configuration
     config = load_config()
-    print("\n✓ Configuration loaded successfully")
+    print("\n[OK] Configuration loaded successfully")
     
     # Initialize file picker
     root = Tk()
@@ -149,10 +149,22 @@ def main():
     
     print("\n" + "-"*80)
     print("Please select a CBOM Excel file...")
-    cbom_path = filedialog.askopenfilename(
-        title="Select CBOM Excel File",
-        filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")]
-    )
+    
+    cbom_path = None
+    try:
+        cbom_path = filedialog.askopenfilename(
+            title="Select CBOM Excel File",
+            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")]
+        )
+    except KeyboardInterrupt:
+        print("\n\nFile selection cancelled. Exiting.")
+    except Exception as e:
+        print(f"\n\nError opening file dialog: {e}")
+    finally:
+        try:
+            root.destroy()
+        except:
+            pass
     
     if not cbom_path:
         print("No file selected. Exiting.")
@@ -166,10 +178,10 @@ def main():
     room_data, data_12nc = load_cbom(cbom_path, config)
     
     if room_data is None or data_12nc is None:
-        print("\n✗ Failed to load CBOM file")
+        print("\n[ERROR] Failed to load CBOM file")
         return
     
-    print("✓ CBOM data loaded successfully")
+    print("[OK] CBOM data loaded successfully")
     
     # Test raw data
     test_raw_data(room_data, data_12nc)
@@ -178,9 +190,9 @@ def main():
     print("\n[Step 2] Transforming CBOM data...")
     try:
         room_mappings, nc12_mappings = transform_cbom_data(room_data, data_12nc, config)
-        print("✓ CBOM data transformed successfully")
+        print("[OK] CBOM data transformed successfully")
     except Exception as e:
-        print(f"\n✗ Transformation failed: {e}")
+        print(f"\n[ERROR] Transformation failed: {e}")
         return
     
     # Test transformed data
@@ -193,8 +205,14 @@ def main():
     test_data_consistency(room_data, data_12nc, room_mappings, nc12_mappings)
     
     print("\n" + "="*80)
-    print("✓ ALL TESTS COMPLETED SUCCESSFULLY!")
+    print("[SUCCESS] ALL TESTS COMPLETED!")
     print("="*80)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\nProgram interrupted by user.")
+    except Exception as e:
+        print(f"\n\nUnexpected error: {e}")
+        raise

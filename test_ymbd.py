@@ -14,22 +14,29 @@ def main():
     config = load_config('config/config.json')
     print("\nConfiguration loaded successfully")
     
-    # Initialize file picker
-    root = Tk()
-    root.withdraw()
-    
-    print("\nPlease select a YMBD Excel file...")
-    file_path = filedialog.askopenfilename(
-        title="Select YMBD Excel File",
-        filetypes=[
-            ("Excel files", "*.xlsx *.xls *.xlsm"),
-            ("All files", "*.*")
-        ]
-    )
-    
-    if not file_path:
-        print("No file selected. Exiting.")
+    try:
+        # Initialize file picker
+        root = Tk()
+        root.withdraw()
+        
+        print("\nPlease select a YMBD Excel file...")
+        file_path = filedialog.askopenfilename(
+            title="Select YMBD Excel File",
+            filetypes=[
+                ("Excel files", "*.xlsx *.xls *.xlsm"),
+                ("All files", "*.*")
+            ]
+        )
+        
+        if not file_path:
+            print("No file selected. Exiting.")
+            return
+    except KeyboardInterrupt:
+        print ("something went wrong with file selection, exiting.")
+        print("\nFile selection cancelled by user. Exiting.")
         return
+    finally:
+        root.destroy()
     
     print(f"\nSelected file: {file_path}")
     
@@ -41,7 +48,7 @@ def main():
     df = read_file(file_path, file_type="ymbd", header=0)
     
     if df is not None:
-        print(f"✓ Successfully read file")
+        print(f"[OK] Successfully read file")
         print(f"  Shape: {df.shape} (rows: {df.shape[0]}, columns: {df.shape[1]})")
         print(f"  Columns: {list(df.columns)}")
         
@@ -66,12 +73,12 @@ def main():
             print("Expected columns from config:")
             for key, col_name in expected_cols.items():
                 exists = col_name in df.columns
-                status = "✓" if exists else "✗"
+                status = "[OK]" if exists else "[MISSING]"
                 print(f"  {status} {key}: '{col_name}'")
         
-        print("\n✓ Test completed successfully!")
+        print("\n[OK] Test completed successfully!")
     else:
-        print("\n✗ Failed to read file")
+        print("\n[ERROR] Failed to read file")
     
     # Test with header=None (no headers)
     print("\n" + "="*80)
@@ -79,7 +86,7 @@ def main():
     df_no_header = read_file(file_path, file_type="ymbd", header=None)
     
     if df_no_header is not None:
-        print(f"✓ Successfully read file without headers")
+        print(f"[OK] Successfully read file without headers")
         print(f"  Shape: {df_no_header.shape}")
         print(f"  Columns: {list(df_no_header.columns)}")
         print("\n--- First 3 Rows ---")
