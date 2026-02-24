@@ -1,5 +1,6 @@
 # take loaded data from data_loaders and transform it into the format needed for the application
 import re
+from typing import List
 import pandas as pd
 
 from src.models.mapping import Room12NCMap, TwelveNCRoomMap
@@ -7,7 +8,9 @@ from src.utils.config_util import load_config
 from .data_loaders import read_file, load_cbom
 
 
-def transform_cbom_data(room_data: dict, data_12nc: dict, config: dict):
+def transform_cbom_data(
+    room_data: dict, data_12nc: dict, config: dict
+) -> tuple[List[Room12NCMap], List[TwelveNCRoomMap]]:
     """Transform raw CBOM data into structured mappings for rooms and 12NCs
     input:
     - room_data: dict with room numbers as keys and DataFrames containing 12NCs with quantities
@@ -24,8 +27,8 @@ def transform_cbom_data(room_data: dict, data_12nc: dict, config: dict):
     if config is None:
         raise ValueError("Configuration cannot be None")
 
-    room_mappings = []
-    nc12_mappings = []
+    room_mappings: List[Room12NCMap] = []
+    nc12_mappings: List[TwelveNCRoomMap] = []
 
     # Validate and transform room data
     for room, twelve_ncs_df in room_data.items():
@@ -64,13 +67,13 @@ def transform_cbom_data(room_data: dict, data_12nc: dict, config: dict):
     print(f"\n[TRANSFORM DEBUG] Transforming 12NC data...")
     print(f"[TRANSFORM DEBUG] Looking for {target_12nc} in data_12nc...")
     print(f"[TRANSFORM DEBUG] Total 12NCs in data_12nc: {len(data_12nc)}")
-    
+
     if target_12nc in data_12nc:
         print(f"[TRANSFORM DEBUG] ✓ Found {target_12nc} in data_12nc")
     else:
         print(f"[TRANSFORM DEBUG] ✗ {target_12nc} NOT in data_12nc")
         print(f"[TRANSFORM DEBUG] Sample keys (first 10): {list(data_12nc.keys())[:10]}")
-    
+
     for nc12, rooms_df in data_12nc.items():
         if not re.match(config["validation"]["patterns"]["12nc_normalized"], str(nc12)):
             print(f"Warning: 12NC '{nc12}' does not match expected format. Skipping.")
@@ -109,10 +112,12 @@ def transform_cbom_data(room_data: dict, data_12nc: dict, config: dict):
             continue
 
         nc12_mappings.append(TwelveNCRoomMap(twelve_nc=str(nc12), rooms=valid_rooms))
-        
+
         # DEBUG: Confirm target was added
         if nc12 == target_12nc:
-            print(f"[TRANSFORM DEBUG] ✓ Added {target_12nc} to nc12_mappings with {len(valid_rooms)} rooms")
+            print(
+                f"[TRANSFORM DEBUG] ✓ Added {target_12nc} to nc12_mappings with {len(valid_rooms)} rooms"
+            )
 
     # DEBUG: Final check
     print(f"\n[TRANSFORM DEBUG] Transformation complete")
