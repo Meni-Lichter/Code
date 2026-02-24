@@ -147,7 +147,7 @@ class PerformanceCenter:
 
     def analyze_multiple_rooms(
         self, rooms: List[str], lookback_years: int = 3, granularity: str = "monthly"
-    ) -> List[PerformanceData]:
+    ) -> dict[str, List[PerformanceData]]:
         """
         Analyze performance for multiple rooms at once
 
@@ -157,7 +157,7 @@ class PerformanceCenter:
             granularity: Time granularity
 
         Returns:
-            List of PerformanceData objects
+            Dictionary of PerformanceData objects keyed by room identifier
         """
         return self.analyzer.multi_item_analyze(
             rooms, id_type="room", lookback_years=lookback_years, granularity=granularity
@@ -165,7 +165,7 @@ class PerformanceCenter:
 
     def analyze_multiple_12ncs(
         self, twelve_ncs: List[str], lookback_years: int = 3, granularity: str = "monthly"
-    ) -> List[PerformanceData]:
+    ) -> dict[str, List[PerformanceData]]:
         """
         Analyze performance for multiple 12NCs at once
 
@@ -175,7 +175,7 @@ class PerformanceCenter:
             granularity: Time granularity
 
         Returns:
-            List of PerformanceData objects
+            Dictionary of PerformanceData objects keyed by 12NC identifier
         """
         return self.analyzer.multi_item_analyze(
             twelve_ncs, id_type="12nc", lookback_years=lookback_years, granularity=granularity

@@ -8,6 +8,7 @@ from typing import List, Optional
 from src.infrastructure import load_cbom
 from src.utils import load_config
 from tkinter import Tk, filedialog
+import pandas as pd
 
 
 def pick_file():
