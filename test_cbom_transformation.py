@@ -20,25 +20,27 @@ def test_raw_data(room_data, data_12nc):
     
     # Sample room data
     print("\n--- Sample Raw Room Data (first 3 rooms) ---")
-    for i, (room_num, twelve_ncs) in enumerate(list(room_data.items())[:3]):
+    for i, (room_num, room_info) in enumerate(list(room_data.items())[:3]):
         print(f"\nRoom: {room_num}")
-        print(f"  Type: {type(twelve_ncs)}")
-        print(f"  12NCs in room: {len(twelve_ncs)}")
-        for nc, qty in list(twelve_ncs.items())[:5]:
-            print(f"    {nc}: {qty}")
-        if len(twelve_ncs) > 5:
-            print(f"    ... and {len(twelve_ncs) - 5} more")
+        print(f"  Description: {room_info['description']}")
+        twelve_ncs_df = room_info['12ncs']
+        print(f"  12NCs in room: {len(twelve_ncs_df)}")
+        for _, row in twelve_ncs_df.head(5).iterrows():
+            print(f"    {row['12NC']}: {row['Quantity']}")
+        if len(twelve_ncs_df) > 5:
+            print(f"    ... and {len(twelve_ncs_df) - 5} more")
     
     # Sample 12NC data
     print("\n--- Sample Raw 12NC Data (first 3 12NCs) ---")
-    for i, (nc12_num, rooms) in enumerate(list(data_12nc.items())[:3]):
+    for i, (nc12_num, nc12_info) in enumerate(list(data_12nc.items())[:3]):
         print(f"\n12NC: {nc12_num}")
-        print(f"  Type: {type(rooms)}")
-        print(f"  Rooms containing this 12NC: {len(rooms)}")
-        for room, qty in list(rooms.items())[:5]:
-            print(f"    {room}: {qty}")
-        if len(rooms) > 5:
-            print(f"    ... and {len(rooms) - 5} more")
+        print(f"  Description: {nc12_info['description']}")
+        rooms_df = nc12_info['rooms']
+        print(f"  Rooms containing this 12NC: {len(rooms_df)}")
+        for _, row in rooms_df.head(5).iterrows():
+            print(f"    {row['Room']}: {row['Quantity']}")
+        if len(rooms_df) > 5:
+            print(f"    ... and {len(rooms_df) - 5} more")
 
 def test_transformed_data(room_mappings, nc12_mappings):
     """Test and display transformed data"""
@@ -129,7 +131,7 @@ def test_data_consistency(room_data, data_12nc, room_mappings, nc12_mappings):
     if room_mappings and room_data:
         check_room = room_mappings[0].room
         if check_room in room_data:
-            raw_count = len(room_data[check_room])
+            raw_count = len(room_data[check_room]['12ncs'])
             mapped_count = len(room_mappings[0].twelve_ncs)
             print(f"\nRoom '{check_room}':")
             print(f"  Raw 12NCs count: {raw_count}")
@@ -177,15 +179,15 @@ def main():
     
     # Step 1: Load CBOM data
     print("\n[Step 1] Loading CBOM data...")
-    room_data, data_12nc, room_descriptions_dict, nc12_descriptions_dict = load_cbom(cbom_path, config)
+    room_data, data_12nc = load_cbom(cbom_path, config)
     
     if room_data is None or data_12nc is None:
         print("\n[ERROR] Failed to load CBOM file")
         return
     
     print("[OK] CBOM data loaded successfully")
-    print(f"[INFO] Loaded {len(room_descriptions_dict)} room descriptions")
-    print(f"[INFO] Loaded {len(nc12_descriptions_dict)} 12NC descriptions")
+    print(f"[INFO] Loaded {len(room_data)} rooms")
+    print(f"[INFO] Loaded {len(data_12nc)} 12NCs")
     
     # Test raw data
     test_raw_data(room_data, data_12nc)
@@ -195,9 +197,7 @@ def main():
     try:
         room_mappings, nc12_mappings = transform_cbom_data(
             room_data, 
-            data_12nc, 
-            room_descriptions_dict,
-            nc12_descriptions_dict,
+            data_12nc,
             config
         )
         print("[OK] CBOM data transformed successfully")

@@ -30,10 +30,8 @@ def load_cbom(cbom_path, config):
     - config: Configuration dictionary with CBOM structure settings
 
     Output:
-    - room_data: Dictionary {room_number: DataFrame['12NC (normalized)', '12NC (original)', '12NC_Description', 'Quantity']}
-    - data_12nc: Dictionary {12nc_number: DataFrame['Room(normalized)','Room(original)', 'Room_Description', 'Quantity']}
-    - room_descriptions_dict: Dictionary {room_number: room_description}
-    - nc12_descriptions_dict: Dictionary {12nc_number: 12nc_description}
+    - room_data: Dictionary {room_number:  tncs['12NC (normalized)', '12NC (original)', '12NC_Description', 'Quantity']}}
+    - data_12nc: Dictionary {12nc_number:  rooms['Room(normalized)','Room(original)', 'Room_Description', 'Quantity']}}
     """
 
     # Get configuration values
@@ -115,7 +113,9 @@ def load_cbom(cbom_path, config):
 
         room_num_normalized = normalize_identifier(room_num)
 
-        if not room_num_normalized:  # Skip empty normalized values
+        if not room_num_normalized or not re.match(
+            config["validation"]["patterns"]["room_normalized"], room_num_normalized
+        ):  # Validate normalized room format (e.g., "ROOM123")
             continue
 
         valid_room_count += 1
@@ -142,32 +142,27 @@ def load_cbom(cbom_path, config):
             quantity = quantity_matrix[nc12_idx, room_idx]
 
             # Only include if quantity exists and is not zero
-            if not pd.isna(quantity) and quantity != 0:
-                nc12_desc = (
-                    str(nc12_descriptions[nc12_idx]).strip()
-                    if not pd.isna(nc12_descriptions[nc12_idx])
-                    else ""
-                )
+            if pd.isna(quantity):
+                quantity = 0
 
-                room_12ncs.append(
-                    {
-                        "12NC": nc12_num_normalized,  # Store normalized version
-                        "12NC_Original": str(nc12_num).strip(),  # Keep original for reference
-                        "12NC_Description": nc12_desc,
-                        "Quantity": quantity,
-                    }
-                )
+            nc12_desc = (
+                str(nc12_descriptions[nc12_idx]).strip()
+                if not pd.isna(nc12_descriptions[nc12_idx])
+                else ""
+            )
+
+            room_12ncs.append(
+                {
+                    "12NC": nc12_num_normalized,  # Store normalized version
+                    "12NC_Original": str(nc12_num).strip(),  # Keep original for reference
+                    "12NC_Description": nc12_desc,
+                    "Quantity": quantity,
+                }
+            )
 
         # Create DataFrame for this room (use normalized room number as key)
         if room_12ncs:
             room_data[room_num_normalized] = pd.DataFrame(room_12ncs)
-            # Store room's own description
-            room_desc = (
-                str(room_descriptions[room_idx]).strip()
-                if not pd.isna(room_descriptions[room_idx])
-                else ""
-            )
-            room_descriptions_dict[room_num_normalized] = room_desc
 
     ############################
     # Process data for each 12NC
@@ -201,11 +196,6 @@ def load_cbom(cbom_path, config):
             continue
 
         valid_12nc_count += 1
-        nc12_desc = (
-            str(nc12_descriptions[nc12_idx]).strip()
-            if not pd.isna(nc12_descriptions[nc12_idx])
-            else ""
-        )
 
         # Collect all rooms for this 12NC
         nc12_rooms = []
@@ -219,27 +209,27 @@ def load_cbom(cbom_path, config):
 
             quantity = quantity_matrix[nc12_idx, room_idx]
 
-            if not pd.isna(quantity) and quantity != 0:
-                room_desc = (
-                    str(room_descriptions[room_idx]).strip()
-                    if not pd.isna(room_descriptions[room_idx])
-                    else ""
-                )
+            if pd.isna(quantity):
+                quantity = 0
 
-                nc12_rooms.append(
-                    {
-                        "Room": room_num_normalized,  # Store normalized version
-                        "Room_Original": str(room_num).strip(),  # Keep original for reference
-                        "Room_Description": room_desc,
-                        "Quantity": quantity,
-                    }
-                )
+            room_desc = (
+                str(room_descriptions[room_idx]).strip()
+                if not pd.isna(room_descriptions[room_idx])
+                else ""
+            )
+
+            nc12_rooms.append(
+                {
+                    "Room": room_num_normalized,  # Store normalized version
+                    "Room_Original": str(room_num).strip(),  # Keep original for reference
+                    "Room_Description": room_desc,
+                    "Quantity": quantity,
+                }
+            )
 
         # Create DataFrame for this 12NC (use normalized 12NC as key)
         if nc12_rooms:
             data_12nc[nc12_num_normalized] = pd.DataFrame(nc12_rooms)
-            # Store 12NC's own description
-            nc12_descriptions_dict[nc12_num_normalized] = nc12_desc
 
     # DEBUG: Final check for target 12NC in mappings
     print(

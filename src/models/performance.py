@@ -4,7 +4,10 @@ from typing import List
 
 @dataclass
 class TimePeriod:
-    """Simple time period definition"""
+    """Simple time period definition
+    label - e.g. "2021-Q1", "2021", "Jan 2021"
+    quantity - total quantity sold in that period
+    """
 
     label: str
     quantity: int

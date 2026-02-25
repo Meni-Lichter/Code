@@ -10,15 +10,16 @@ from .data_loaders import read_file, load_cbom
 
 
 def transform_cbom_data(
-    room_data: dict, data_12nc: dict, config: dict
+    room_data: dict, 
+    data_12nc: dict,
+    config: dict
 ) -> tuple[List[Room], List[TwelveNC]]:
-    """Transform raw CBOM data into structured mappings for rooms and 12NCs
+    """Transform raw CBOM data into structured Room and TwelveNC objects
+    
     input:
-    - room_data: dict with room numbers as keys and DataFrames containing 12NCs with quantities
-    - data_12nc: dict with 12NCs as keys and DataFrames containing rooms with quantities
-    - room_descriptions_dict: dict with room descriptions {room: description}
-    - nc12_descriptions_dict: dict with 12NC descriptions {12nc: description}
-    - config: configuration dictionary for validation patterns and other settings
+    - room_data: dict with room numbers as keys and dicts containing {'description': str, '12ncs': DataFrame}
+    - data_12nc: dict with 12NCs as keys and dicts containing {'description': str, 'rooms': DataFrame}
+    - config: configuration dictionary for validation patterns
 
     output:
     - room_mappings: list of Room objects
@@ -34,16 +35,17 @@ def transform_cbom_data(
     nc12_mappings: List[TwelveNC] = []
 
     # Validate and transform room data
-    for room, twelve_ncs_df in room_data.items():
+    for room, room_info in room_data.items():
         if not re.match(config["validation"]["patterns"]["room_normalized"], room):
             print(f"Warning: Room '{room}' does not match expected format. Skipping.")
             continue
 
+        # Extract description and 12NCs DataFrame
+        room_description = room_info['description']
+        twelve_ncs_df = room_info['12ncs']
+
         # Convert DataFrame to dict {12NC: Quantity}
-        if isinstance(twelve_ncs_df, pd.DataFrame):
-            twelve_ncs_dict = dict(zip(twelve_ncs_df["12NC"], twelve_ncs_df["Quantity"]))
-        else:
-            twelve_ncs_dict = twelve_ncs_df
+        twelve_ncs_dict = dict(zip(twelve_ncs_df["12NC"], twelve_ncs_df["Quantity"]))
 
         # Validate 12NCs and convert quantities to integers
         valid_twelve_ncs = {}
@@ -63,16 +65,13 @@ def transform_cbom_data(
             print(f"Warning: No valid 12NCs found for room '{room}'. Skipping.")
             continue
 
-        # Get room description
-        room_description = room_descriptions_dict.get(room, "")
-
         # Create Room object with empty sales history
         room_mappings.append(
             Room(
                 room=room,
                 room_description=room_description,
                 twelve_ncs=valid_twelve_ncs,
-                sales_history={},  # Empty for now, can be populated later
+                sales_history=[],
             )
         )
 
@@ -88,24 +87,24 @@ def transform_cbom_data(
         print(f"[TRANSFORM DEBUG] ✗ {target_12nc} NOT in data_12nc")
         print(f"[TRANSFORM DEBUG] Sample keys (first 10): {list(data_12nc.keys())[:10]}")
 
-    for nc12, rooms_df in data_12nc.items():
+    for nc12, nc12_info in data_12nc.items():
         if not re.match(config["validation"]["patterns"]["12nc_normalized"], str(nc12)):
             print(f"Warning: 12NC '{nc12}' does not match expected format. Skipping.")
             continue
+
+        # Extract description and rooms DataFrame
+        nc12_description = nc12_info['description']
+        rooms_df = nc12_info['rooms']
 
         # DEBUG: Track target through transformation
         if nc12 == target_12nc:
             print(f"[TRANSFORM DEBUG] Processing {target_12nc}...")
             print(f"[TRANSFORM DEBUG] rooms_df type: {type(rooms_df)}")
-            if isinstance(rooms_df, pd.DataFrame):
-                print(f"[TRANSFORM DEBUG] rooms_df shape: {rooms_df.shape}")
-                print(f"[TRANSFORM DEBUG] rooms_df columns: {rooms_df.columns.tolist()}")
+            print(f"[TRANSFORM DEBUG] rooms_df shape: {rooms_df.shape}")
+            print(f"[TRANSFORM DEBUG] rooms_df columns: {rooms_df.columns.tolist()}")
 
         # Convert DataFrame to dict {Room: Quantity}
-        if isinstance(rooms_df, pd.DataFrame):
-            rooms_dict = dict(zip(rooms_df["Room"], rooms_df["Quantity"]))
-        else:
-            rooms_dict = rooms_df
+        rooms_dict = dict(zip(rooms_df["Room"], rooms_df["Quantity"]))
 
         # Validate rooms and convert quantities to integers
         valid_rooms = {}
@@ -125,16 +124,13 @@ def transform_cbom_data(
             print(f"Warning: No valid rooms found for 12NC '{nc12}'. Skipping.")
             continue
 
-        # Get 12NC description
-        nc12_description = nc12_descriptions_dict.get(str(nc12), "")
-
         # Create TwelveNC object with empty sales history
         nc12_mappings.append(
             TwelveNC(
                 twelve_nc=str(nc12),
                 tnc_description=nc12_description,
                 rooms=valid_rooms,
-                sales_history={},  # Empty for now, can be populated later
+                sales_history=[],
             )
         )
 

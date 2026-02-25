@@ -314,16 +314,14 @@ def interactive_demo():
     try:
         # Load CBOM
         print("\n📂 Loading CBOM data...")
-        room_data, data_12nc, room_descriptions_dict, nc12_descriptions_dict = load_cbom(
-            cbom_path, config
-        )
+        room_data, data_12nc = load_cbom(cbom_path, config)
 
         if room_data is None or data_12nc is None:
             print("✗ Failed to load CBOM data")
             return
 
         room_mappings, nc12_mappings = transform_cbom_data(
-            room_data, data_12nc, room_descriptions_dict, nc12_descriptions_dict, config
+            room_data, data_12nc, config
         )
         print(f"✓ Loaded {len(room_mappings)} room and {len(nc12_mappings)} 12NC MAPPINGS!!!!")
 
@@ -357,7 +355,7 @@ def interactive_demo():
         # Initialize Performance Center
         print("\n🏢 Initializing Performance Center...")
         pc = PerformanceCenter(
-            sales_data=sales_records, room_mappings=room_mappings, nc12_mappings=nc12_mappings
+            sales_data=sales_records, rooms=room_mappings, nc12s=nc12_mappings
         )
 
         # Display summary
