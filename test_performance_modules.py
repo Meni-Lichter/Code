@@ -4,11 +4,9 @@ Tests include file loading, data transformation, and integration with all module
 """
 
 from typing import List
-
-import pytest
 import pandas as pd
 from pathlib import Path
-from datetime import date, datetime
+from datetime import datetime
 from src.models import SalesRecord
 from src.analysis import PerformanceAnalyzer, Predictor
 from src.services import PerformanceCenter
@@ -96,9 +94,7 @@ def parse_ymbd_to_sales_records(ymbd_df) -> List[SalesRecord]:
                     )
 
             quantity = int(row["Component Quantity"])
-            sales_record = SalesRecord(
-                twelve_nc=twelve_nc, room="UNKNOWN", quantity=quantity, date=sales_date
-            )
+            sales_record = SalesRecord(identifier=twelve_nc, quantity=quantity, date=sales_date)
             # We'll need room mapping from CBOM
             sales_records.append(sales_record)
         except Exception as e:
@@ -151,9 +147,7 @@ def parse_fit_cvi_to_sales_records(fit_cvi_df) -> List[SalesRecord]:
             room = str(row["Characteristic\nCharacteristic Name"]).strip()
             quantity = int(row["(Self)\nValue from"])
 
-            sales_record = SalesRecord(
-                twelve_nc="ROOM_LEVEL_DATA", room=room, quantity=quantity, date=sales_date
-            )
+            sales_record = SalesRecord(identifier=room, quantity=quantity, date=sales_date)
             sales_records.append(sales_record)
         except Exception as e:
             print(f"Warning: Skipping row due to error: {e}")
@@ -203,9 +197,7 @@ def merge_sales_data(
         room = nc_to_rooms.get(twelve_nc, ["UNKNOWN"])[0]
 
         sales_records.append(
-            SalesRecord(
-                twelve_nc=twelve_nc, room=room, quantity=record["quantity"], date=record["date"]
-            )
+            SalesRecord(identifier=twelve_nc, quantity=record["quantity"], date=record["date"])
         )
 
     # Process FIT_CVI records (Room sales data)
@@ -216,9 +208,7 @@ def merge_sales_data(
         twelve_nc = "ROOM_LEVEL_DATA"
 
         sales_records.append(
-            SalesRecord(
-                twelve_nc=twelve_nc, room=room, quantity=record["quantity"], date=record["date"]
-            )
+            SalesRecord(identifier=room, quantity=record["quantity"], date=record["date"])
         )
 
     print(f"[DEBUG] Created {ymbd_count_for_target} sales records for {target_12nc} from YMBD data")
@@ -320,9 +310,7 @@ def interactive_demo():
             print("✗ Failed to load CBOM data")
             return
 
-        room_mappings, nc12_mappings = transform_cbom_data(
-            room_data, data_12nc, config
-        )
+        room_mappings, nc12_mappings = transform_cbom_data(room_data, data_12nc, config)
         print(f"✓ Loaded {len(room_mappings)} room and {len(nc12_mappings)} 12NC MAPPINGS!!!!")
 
         # Load YMBD
@@ -354,9 +342,7 @@ def interactive_demo():
 
         # Initialize Performance Center
         print("\n🏢 Initializing Performance Center...")
-        pc = PerformanceCenter(
-            sales_data=sales_records, rooms=room_mappings, nc12s=nc12_mappings
-        )
+        pc = PerformanceCenter(rooms=room_mappings, nc12s=nc12_mappings)
 
         # Display summary
         stats = pc.get_summary_stats()

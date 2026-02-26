@@ -1,7 +1,6 @@
 """Performance Center - High-level service orchestrating all features"""
 
 from typing import List, Dict, Optional
-from xml.dom.minidom import G_entity
 from ..models import SalesRecord, PerformanceData, Prediction, Room, TwelveNC, G_entity
 from ..analysis import PerformanceAnalyzer, Predictor
 
@@ -25,7 +24,6 @@ class PerformanceCenter:
     def analyze_obj_performance(
         self,
         analyzed_obj: G_entity,
-        obj_type: str = "room",
         lookback_years: int = 3,
         granularity: str = "monthly",
     ) -> PerformanceData:
@@ -34,7 +32,6 @@ class PerformanceCenter:
 
         Args:
             analyzed_obj: Room or TwelveNC object
-            obj_type: Type of the object ("room" or "12nc")
             lookback_years: Number of years of history to analyze
             granularity: Time granularity ("daily", "monthly", "quarterly", "yearly")
 
@@ -45,19 +42,19 @@ class PerformanceCenter:
             analyzed_obj, lookback_years=lookback_years, granularity=granularity
         )
 
-    def predict_room_demand(
+    def predict_entity_demand(
         self,
-        room: Room,
-        target_time: str | None,
+        entity: G_entity,
+        target_time: str,
         lookback_years: int = 3,
         method: str = "average",
         buffer_percentage: float = 10.0,
     ) -> Prediction:
         """
-        Predict future demand for a room (Feature 2 + Feature 3 combined)
+        Predict future demand for an entity (Room or TwelveNC) (Feature 2 + Feature 3 combined)
 
         Args:
-            room: Room identifier
+            entity: Room or TwelveNC object
             lookback_years: Years of history to use for prediction
             method: Prediction method ("average", "last", "trend")
             buffer_percentage: Safety buffer percentage
@@ -66,9 +63,7 @@ class PerformanceCenter:
             Prediction object with forecasted demand
         """
         # First analyze historical performance
-        performance = self.analyze_obj_performance(
-            room, obj_type="room", lookback_years=lookback_years
-        )
+        performance = self.analyze_obj_performance(entity, lookback_years=lookback_years)
 
         # Then predict based on performance
         predictor = Predictor(performance)
@@ -76,33 +71,7 @@ class PerformanceCenter:
             target_time=target_time, method=method, buffer_percentage=buffer_percentage
         )
 
-    def predict_12nc_demand(
-        self,
-        twelve_nc: TwelveNC,
-        lookback_years: int = 3,
-        method: str = "average",
-        buffer_percentage: float = 10.0,
-    ) -> Prediction:
-        """
-        Predict future demand for a 12NC (Feature 2 + Feature 3 combined)
-
-        Args:
-            twelve_nc: 12NC identifier
-            lookback_years: Years of history to use for prediction
-            method: Prediction method
-            buffer_percentage: Safety buffer percentage
-
-        Returns:
-            Prediction object with forecasted demand
-        """
-        # First analyze historical performance
-        performance = self.analyze_12nc_performance(twelve_nc, lookback_years)
-
-        # Then predict based on performance
-        predictor = Predictor(performance)
-        return predictor.predict(method=method, buffer_percentage=buffer_percentage)
-
-    def get_room_components(self, room: str) -> Dict[TwelveNC, int] | None:
+    def get_entity_components(self, entity: G_entity) -> Dict[G_entity, int] | None:
         """
         Get the 12NC components for a specific room from CBOM data (Feature 1)
 
@@ -112,60 +81,33 @@ class PerformanceCenter:
         Returns:
             Dictionary of 12NC components or None if not found
         """
-        for room_obj in self.rooms:
-            if room_obj.room == room:
-                return room_obj.twelve_ncs
-        return None
+        if isinstance(entity.g_entity, Room):
+            for room_obj in self.rooms:
+                if room_obj.room == entity.g_entity.id:
+                    return room_obj.components
+        elif isinstance(entity.g_entity, TwelveNC):
+            for tnc_obj in self.nc12s:
+                if tnc_obj.twelve_nc == entity.g_entity.id:
+                    return tnc_obj.rooms
+        else:
+            raise ValueError("Entity must be of type Room or TwelveNC")
 
-    def get_12nc_rooms(self, twelve_nc: str) -> Dict[Room, int] | None:
-        """
-        Get the rooms containing a specific 12NC from CBOM data (Feature 1)
-
-        Args:
-            twelve_nc: 12NC identifier
-
-        Returns:
-            Dictionary of rooms or None if not found
-        """
-        for tnc_obj in self.nc12s:
-            if tnc_obj.twelve_nc == twelve_nc:
-                return tnc_obj.rooms
-        return None
-
-    def analyze_multiple_rooms(
-        self, rooms: List[str], lookback_years: int = 3, granularity: str = "monthly"
+    def analyze_multiple_entities(
+        self, entities: List[G_entity], lookback_years: int = 3, granularity: str = "monthly"
     ) -> dict[str, List[PerformanceData]]:
         """
-        Analyze performance for multiple rooms at once
+        Analyze performance for multiple entities (Room or TwelveNC) at once
 
         Args:
-            rooms: List of room identifiers
+            entities: List of G_entity objects to analyze
             lookback_years: Years of history to analyze
             granularity: Time granularity
 
         Returns:
-            Dictionary of PerformanceData objects keyed by room identifier
+            Dictionary of PerformanceData objects keyed by entity identifier
         """
         return self.analyzer.multi_item_analyze(
-            rooms, id_type="room", lookback_years=lookback_years, granularity=granularity
-        )
-
-    def analyze_multiple_12ncs(
-        self, twelve_ncs: List[str], lookback_years: int = 3, granularity: str = "monthly"
-    ) -> dict[str, List[PerformanceData]]:
-        """
-        Analyze performance for multiple 12NCs at once
-
-        Args:
-            twelve_ncs: List of 12NC identifiers
-            lookback_years: Years of history to analyze
-            granularity: Time granularity
-
-        Returns:
-            Dictionary of PerformanceData objects keyed by 12NC identifier
-        """
-        return self.analyzer.multi_item_analyze(
-            twelve_ncs, id_type="12nc", lookback_years=lookback_years, granularity=granularity
+            entities, lookback_years=lookback_years, granularity=granularity
         )
 
     def get_summary_stats(self) -> Dict:

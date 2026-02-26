@@ -128,14 +128,12 @@ class PerformanceAnalyzer:
     def multi_item_analyze(
         self,
         analyzed_objs: List[G_entity],
-        objs_type: str = "12nc",
         lookback_years: int = 3,
         granularity: str = "monthly",
     ) -> Dict[str, List[PerformanceData]]:
         """Analyze multiple items:
         input:
             - analyzed_objs: List of Room or TwelveNC objects to analyze
-            - objs_type: "12nc" or "room"
             - lookback_years: number of years to look back for analysis
             - granularity: "monthly" or "yearly"
         output:
@@ -151,6 +149,6 @@ class PerformanceAnalyzer:
                 )
                 results[analyzed_obj].append(performance_data)
             except Exception as e:
-                print(f"Error analyzing {objs_type} '{analyzed_obj}': {e}")
+                print(f"Error analyzing entity '{analyzed_obj}': {e}")
 
         return results

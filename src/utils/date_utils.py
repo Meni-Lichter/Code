@@ -1,6 +1,5 @@
 """Date utility functions for period key generation and next period labeling"""
 
-import calendar
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 from src.utils import load_config
@@ -167,3 +166,56 @@ def get_granularity_from_label(label: str, date_format: str) -> str:
         return "yearly"
     else:
         return "monthly"  # Default
+
+
+def _infer_granularity(self) -> str:
+    """Infer time granularity from period labels (MM-DD-YYYY format)"""
+    if not self.performance_data.periods:
+        return "monthly"
+
+    label = self.performance_data.periods[0].label
+
+    if "-Q" in label:
+        return "quarterly"
+    elif len(label) == 4 and label.isdigit():
+        return "yearly"
+    elif len(label) == 10 and label.count("-") == 2:  # MM-DD-YYYY
+        return "daily"
+    elif len(label) == 7 and label[2] == "-":  # MM-YYYY
+        return "monthly"
+    else:
+        return "monthly"
+
+
+def _extract_date_parts(self, period_label: str) -> tuple[int, int] | None:
+    """Extract date parts from period label in MM-DD-YYYY format
+    Args:
+        period_label: Period label (e.g., '02-2025', '02-24-2025', '2025-Q1')
+
+    Returns:
+        Tuple of (month, year) or None for yearly granularity
+    """
+    try:
+        if "-Q" in period_label:
+            # Quarterly format: YYYY-Qn
+            parts = period_label.split("-Q")
+            year = int(parts[0])
+            quarter = int(parts[1])
+            # Use middle month of quarter
+            month = quarter * 3 - 1
+            return (month, year)
+        elif len(period_label) == 7 and period_label[2] == "-":
+            # Monthly format: MM-YYYY
+            month = int(period_label[:2])
+            year = int(period_label[3:])
+            return (month, year)
+        elif len(period_label) == 10 and period_label.count("-") == 2:
+            # Daily format: MM-DD-YYYY
+            date_obj = datetime.strptime(period_label, "%m-%d-%Y")
+            return (date_obj.month, date_obj.year)
+        elif len(period_label) == 4 and period_label.isdigit():
+            # Yearly format: YYYY - no specific month
+            return None
+    except (ValueError, IndexError):
+        pass
+    return None

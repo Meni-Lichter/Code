@@ -10,8 +10,8 @@ class Room:
     """room with multiple 12NCs and its sales history"""
 
     id: str
-    room_description: str
-    twelve_ncs: Dict[str, int]  # {12NC: quantity}
+    description: str
+    componenets: Dict[str, int]  # {12NC: quantity}
     sales_history: List[SalesRecord]  # {12NC: SalesRecord}
 
     @property
@@ -56,9 +56,9 @@ class TwelveNC:
     """Mapping between 12NCs and rooms"""
 
     id: str
-    tnc_description: str
-    tnc_igt: str
-    rooms: Dict[str, int]  # {room: quantity}
+    description: str
+    igt: str
+    componenets: Dict[str, int]  # {room: quantity}
     sales_history: List[SalesRecord]  # {room: SalesRecord}
 
     @property
