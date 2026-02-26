@@ -1,7 +1,8 @@
 """Performance Center - High-level service orchestrating all features"""
 
 from typing import List, Dict, Optional
-from ..models import SalesRecord, PerformanceData, Prediction, Room, TwelveNC
+from xml.dom.minidom import G_entity
+from ..models import SalesRecord, PerformanceData, Prediction, Room, TwelveNC, G_entity
 from ..analysis import PerformanceAnalyzer, Predictor
 
 
@@ -23,7 +24,7 @@ class PerformanceCenter:
 
     def analyze_obj_performance(
         self,
-        analyzed_obj: Room | TwelveNC,
+        analyzed_obj: G_entity,
         obj_type: str = "room",
         lookback_years: int = 3,
         granularity: str = "monthly",
@@ -41,7 +42,7 @@ class PerformanceCenter:
             PerformanceData object with historical performance
         """
         return self.analyzer.analyze(
-            analyzed_obj, obj_type=obj_type, lookback_years=lookback_years, granularity=granularity
+            analyzed_obj, lookback_years=lookback_years, granularity=granularity
         )
 
     def predict_room_demand(

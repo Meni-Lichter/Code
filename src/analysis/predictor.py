@@ -1,12 +1,5 @@
-from calendar import calendar
-from logging import config
-from math import inf
 from typing import List, Optional
-from datetime import datetime
-from webbrowser import get
-from dateutil.relativedelta import relativedelta
-from pandas import Period
-
+from datetime import date, datetime
 from src.models.performance import TimePeriod
 from ..models import PerformanceData, Prediction
 from ..utils import get_next_period_label
@@ -47,18 +40,18 @@ class Predictor:
         """
         if not self.performance_data.periods:
             raise ValueError("No historical data available for prediction")
-        granularity = self._infer_granularity()
-        target_time = match_granularity(target_time, granularity)
+        current_time = date.today().strftime("%m-%d-%Y")
+
+        if datetime.strptime(target_time, "%m-%d-%Y") < datetime.strptime(current_time, "%m-%d-%Y"):
+            raise ValueError("Target time must be in the future")
+
+        granularity = self.performance_data.granularity
 
         # Calculate baseline prediction based on method
         if method == "avg_same_period_previous_years":
-            baseline = self._predict_avg_same_period_previous_years(
-                target_time, n_years=3, granularity=granularity
-            )
+            baseline = self._predict_avg_same_period_previous_years(target_time, granularity)
         elif method == "avg_last_n_periods":
-            baseline = self._predict_avg_last_n_periods(n_periods, granularity=granularity)
-        elif method == "same_period_last_year":
-            baseline = self._predict_same_period_last_year(target_time, granularity=granularity)
+            baseline = self._predict_avg_last_n_periods(n_periods, granularity)
         else:  # default to average
             baseline = self.performance_data.average
 
@@ -66,12 +59,10 @@ class Predictor:
         predicted_quantity = baseline * (1 + buffer_percentage / 100)
 
         # Determine next period label based on current granularity
-        granularity = self._infer_granularity()
         next_period = get_next_period_label(granularity)
 
         return Prediction(
-            identifier=self.performance_data.identifier,
-            type=self.performance_data.type,
+            g_entity=self.performance_data.g_entity,
             period_label=next_period,
             predicted_quantity=predicted_quantity,
             baseline=baseline,
@@ -130,9 +121,7 @@ class Predictor:
             pass
         return None
 
-    def _predict_avg_same_period_previous_years(
-        self, target_time: str, n_years: int = 3, granularity: str = "monthly"
-    ) -> float:
+    def _predict_avg_same_period_previous_years(self, target_time: str, granularity: str) -> float:
         """Predict based on average of the same period in previous years
 
         For example: predict March 2026 based on average of March 2023, 2024, 2025
@@ -140,10 +129,13 @@ class Predictor:
         Returns:
             Predicted quantity based on historical same-period average
         """
+        # Prematic check for valid inputs
+        if target_time is None or len(self.performance_data.periods) == 0:
+            return self.performance_data.average
+
         if granularity == "yearly":
             # For yearly, average the last n years
-            recent = self.performance_data.periods[-n_years:]
-
+            recent = self.performance_data.periods
             return (
                 sum(p.quantity for p in recent) / len(recent)
                 if recent
@@ -152,7 +144,7 @@ class Predictor:
 
         elif granularity == "monthly":
             # for monthly, average the target month from previous n years
-            recent = self.performance_data.periods[-n_years * 12 :]
+            recent = self.performance_data.periods
             target_month = target_time[:2]  # Extract month from MM-YYYY format
             matching_months = [float(p.quantity) for p in recent if p.label[:2] == target_month]
             return (
@@ -163,7 +155,7 @@ class Predictor:
 
         elif granularity == "quarterly":
             # for quarterly, average the target quarter from previous n years
-            recent = self.performance_data.periods[-n_years * 4 :]
+            recent = self.performance_data.periods
             target_month = target_time[5:7]  # Extract quarter from target_time
             target_quarter = int((int(target_month) - 1) / 3) + 1  # Convert month to quarter
             matching_quarters = [
@@ -176,9 +168,9 @@ class Predictor:
                 if matching_quarters
                 else self.performance_data.average
             )
-        elif granularity == "daily":
+        else:  # granularity == "daily"
             # for daily, average the target day from previous n years
-            recent = self.performance_data.periods[-n_years * 365 :]
+            recent = self.performance_data.periods
             target_day = target_time[:5]  # Extract day from MM-DD-YYYY format
             matching_days = [float(p.quantity) for p in recent if p.label[:5] == target_day]
             return (
@@ -186,34 +178,6 @@ class Predictor:
                 if matching_days
                 else self.performance_data.average
             )
-
-        next_period_info = self._extract_date_parts(target_time)
-        if next_period_info is None:
-            return self.performance_data.average
-
-        target_month, target_year = next_period_info
-        matching_periods = []
-
-        # For daily: also match the specific day, not just month
-        for period in self.performance_data.periods:
-            period_info = self._extract_date_parts(period.label)
-            if not period_info:
-                continue
-
-            month, year = period_info
-
-            # Match same month from previous n years
-            if month == target_month and (target_year - n_years <= year < target_year):
-                # For daily, add additional filtering here
-                if granularity == "daily":
-                    # Extract and compare day numbers
-                    pass
-                matching_periods.append(float(period.quantity))
-
-        if not matching_periods:
-            return self.performance_data.average
-
-        return sum(matching_periods) / len(matching_periods)
 
     def _predict_avg_last_n_periods(
         self, n_periods: int = 11, granularity: str = "monthly"
@@ -224,49 +188,47 @@ class Predictor:
 
         Args:
             n_periods: Number of recent periods to average
+            granularity: Time granularity of the data (e.g., "monthly", "quarterly")
 
         Returns:
             Predicted quantity based on recent n-period average
         """
-        if len(self.performance_data.periods) == 0:
+        # Prematic check for valid inputs
+        if (
+            len(self.performance_data.periods) == 0
+            or n_periods <= 0
+            or granularity not in ["yearly", "quarterly", "monthly", "daily"]
+        ):
             return 0.0
 
-        # Use last n periods or all available if less than n
-        recent_periods = self.performance_data.periods[-n_periods:]
-        total = sum(float(period.quantity) for period in recent_periods)
-        return total / len(recent_periods)
-
-    def _predict_same_period_last_year(
-        self, target_time: str | None, granularity: str = "monthly"
-    ) -> float:
-        """Predict based on the same period exactly one year ago
-
-        For example: predict March 2026 based on March 2025
-
-        Returns:
-            Predicted quantity based on same period last year
-        """
-        granularity = self._infer_granularity()
-        next_period = get_next_period_label(granularity)
-        next_period_info = self._extract_date_parts(next_period)
-
-        if next_period_info is None:
-            # For yearly granularity, just use the last year's data
-            if self.performance_data.periods:
-                return float(self.performance_data.periods[-1].quantity)
-            return self.performance_data.average
-
-        target_month, target_year = next_period_info
-        last_year = target_year - 1
-
-        # Find the period from last year with the same month
-        for period in reversed(self.performance_data.periods):
-            period_info = self._extract_month_year(period.label)
-            if period_info and period_info[0] == target_month and period_info[1] == last_year:
-                return float(period.quantity)
-
-        # Fallback: if exact match not found, use average
-        return self.performance_data.average
+        if granularity == "yearly":
+            recent = self.performance_data.periods[-n_periods:]
+            return (
+                sum(p.quantity for p in recent) / len(recent)
+                if recent
+                else self.performance_data.average
+            )
+        elif granularity == "monthly":
+            recent = self.performance_data.periods[-n_periods:]
+            return (
+                sum(p.quantity for p in recent) / len(recent)
+                if recent
+                else self.performance_data.average
+            )
+        elif granularity == "quarterly":
+            recent = self.performance_data.periods[-n_periods:]
+            return (
+                sum(p.quantity for p in recent) / len(recent)
+                if recent
+                else self.performance_data.average
+            )
+        else:  # daily
+            recent = self.performance_data.periods[-n_periods:]
+            return (
+                sum(p.quantity for p in recent) / len(recent)
+                if recent
+                else self.performance_data.average
+            )
 
     def multi_period_predict(
         self, periods: List[TimePeriod], method: str = "average", buffer_percentage: float = 10.0
@@ -302,111 +264,3 @@ class Predictor:
         if new_buffer < 0:
             raise ValueError("Buffer percentage cannot be negative")
         self.buffer_percentage = new_buffer
-
-
-def match_granularity(target_time: str, granularity: str) -> str:
-    """
-    Adjust target_time to match the granularity of historical performance data.
-
-    If target is more specific than data (e.g., daily target but monthly data),
-    convert target to data's granularity and notify user.
-
-    If target is less specific than data (e.g., monthly target but daily data),
-    keep target as-is (aggregation will happen during prediction).
-
-    Args:
-        target_time: User's requested target period
-        granularity: Granularity of historical performance data
-
-    Returns:
-        Adjusted target_time matching data granularity
-    """
-
-    config = load_config()
-    date_format = config["validation"].get("date_format", "MM-DD-YYYY")
-    target_time = str(target_time)
-    label_granularity = get_granularity_from_label(target_time, date_format)
-
-    # If granularities match, no adjustment needed
-    if label_granularity == granularity:
-        return target_time
-
-    # Define granularity hierarchy (least to most specific)
-    granularity_order = {"yearly": 1, "quarterly": 2, "monthly": 3, "daily": 4}
-
-    target_level = granularity_order.get(label_granularity, 0)
-    data_level = granularity_order.get(granularity, 0)
-
-    # Target is MORE specific than data - need to convert UP
-    if target_level > data_level:
-        print(
-            f"⚠️  Warning: Target time '{target_time}' is {label_granularity}, "
-            f"but data is {granularity}. Converting to {granularity} granularity."
-        )
-
-        try:
-            # Parse based on label granularity using MM-DD-YYYY format
-            if label_granularity == "daily":
-                # Parse MM-DD-YYYY format
-                date_obj = datetime.strptime(target_time, "%m-%d-%Y")
-            elif label_granularity == "monthly":
-                # Parse MM-YYYY format
-                date_obj = datetime.strptime(target_time, "%m-%Y")
-            elif label_granularity == "quarterly":
-                parts = target_time.split("-Q")
-                year = int(parts[0])
-                quarter = int(parts[1])
-                month = quarter * 3 - 2  # First month of quarter
-                date_obj = datetime(year, month, 1)
-            elif label_granularity == "yearly":
-                date_obj = datetime(int(target_time), 1, 1)
-            else:
-                return target_time  # Can't parse, return as-is
-
-            # Convert to data's granularity using MM-DD-YYYY format
-            if granularity == "yearly":
-                return f"{date_obj.year}"
-            elif granularity == "quarterly":
-                quarter = (date_obj.month - 1) // 3 + 1
-                return f"{date_obj.year}-Q{quarter}"
-            elif granularity == "monthly":
-                # Return in MM-YYYY format
-                return f"{date_obj.month:02d}-{date_obj.year}"
-            elif granularity == "daily":
-                # Return in MM-DD-YYYY format
-                return date_obj.strftime("%m-%d-%Y")
-
-        except (ValueError, IndexError, AttributeError) as e:
-            print(f"⚠️  Error parsing target time '{target_time}': {e}. Using as-is.")
-            return target_time
-
-    # Target is LESS specific than data - keep target as-is
-    # Aggregation will happen during prediction
-    else:
-        print(
-            f"ℹ️  Target time '{target_time}' is {label_granularity}, "
-            f"data is {granularity}. Will aggregate data to match target."
-        )
-        return target_time
-
-
-def get_granularity_from_label(label: str, date_format: str) -> str:
-    """Determine granularity from a period label using MM-DD-YYYY format
-
-    Args:
-        label: Period label to analyze
-        date_format: Date format from config (e.g., 'MM-DD-YYYY')
-
-    Returns:
-        Granularity string: 'yearly', 'quarterly', 'monthly', or 'daily'
-    """
-    if "-Q" in label:
-        return "quarterly"
-    elif len(label) == 10 and label.count("-") == 2:  # MM-DD-YYYY (e.g., 02-24-2025)
-        return "daily"
-    elif len(label) == 7 and label[2] == "-":  # MM-YYYY (e.g., 02-2025)
-        return "monthly"
-    elif len(label) == 4 and label.isdigit():  # YYYY
-        return "yearly"
-    else:
-        return "monthly"  # Default

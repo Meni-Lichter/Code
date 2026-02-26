@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from pyclbr import Class
+from tkinter import E
 from typing import Dict, List
 from src.models import SalesRecord
 
@@ -7,7 +9,7 @@ from src.models import SalesRecord
 class Room:
     """room with multiple 12NCs and its sales history"""
 
-    room: str
+    id: str
     room_description: str
     twelve_ncs: Dict[str, int]  # {12NC: quantity}
     sales_history: List[SalesRecord]  # {12NC: SalesRecord}
@@ -22,12 +24,12 @@ class Room:
         return twelve_nc in self.twelve_ncs
 
     def show_12ncs(self) -> None:
-        print(f"Room: {self.room} contains the following 12NCs:")
+        print(f"Room: {self.id} contains the following 12NCs:")
         for nc, qty in self.twelve_ncs.items():
             print(f"12NC: {nc}, Quantity: {qty}")
 
     def show_sales_history(self) -> None:
-        print(f"Sales history for Room: {self.room}")
+        print(f"Sales history for Room: {self.id}")
         for record in self.sales_history:
             print(
                 f"12NC: {record.identifier}, Quantity Sold: {record.quantity}, Date: {record.date}"
@@ -53,7 +55,7 @@ class Room:
 class TwelveNC:
     """Mapping between 12NCs and rooms"""
 
-    twelve_nc: str
+    id: str
     tnc_description: str
     tnc_igt: str
     rooms: Dict[str, int]  # {room: quantity}
@@ -69,12 +71,12 @@ class TwelveNC:
         return room in self.rooms
 
     def show_rooms(self) -> None:
-        print(f"12NC: {self.twelve_nc} is found in the following rooms:")
+        print(f"12NC: {self.id} is found in the following rooms:")
         for room, qty in self.rooms.items():
             print(f"Room: {room}, Quantity: {qty}")
 
     def show_sales_history(self) -> None:
-        print(f"Sales history for 12NC: {self.twelve_nc}")
+        print(f"Sales history for 12NC: {self.id}")
         for record in self.sales_history:
             print(
                 f"Room: {record.identifier}, Quantity Sold: {record.quantity}, Date: {record.date}"
@@ -90,7 +92,22 @@ class TwelveNC:
 
     def __post_init__(self):
         """Validate data on initialization"""
-        if not self.twelve_nc:
+        if not self.id:
             raise ValueError("12NC cannot be empty")
         if not self.tnc_description:
             raise ValueError("12NC description cannot be empty")
+
+
+@dataclass
+class G_entity:
+    """Base class for Room and 12NC entities"""
+
+    g_entity: Room | TwelveNC
+    entity_type: str  # "room" or "12NC"
+
+
+def __init__(self, g_entity: Room | TwelveNC, entity_type: str):
+    if entity_type not in ["room", "12NC"]:
+        raise ValueError("entity_type must be 'room' or '12NC'")
+    self.g_entity = g_entity
+    self.entity_type = entity_type

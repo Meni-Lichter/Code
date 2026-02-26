@@ -2,11 +2,9 @@ from datetime import datetime, date
 from typing import List, Dict
 from collections import defaultdict
 from dateutil.relativedelta import relativedelta
-from pyparsing.diagram import T
-
-from src.models.mapping import Room, TwelveNC
 from ..models import SalesRecord, PerformanceData, TimePeriod
 from ..utils import get_period_key
+from src.models import G_entity
 
 
 class PerformanceAnalyzer:
@@ -17,8 +15,7 @@ class PerformanceAnalyzer:
 
     def analyze(
         self,
-        analyzed_obj: Room | TwelveNC,
-        obj_type: str = "room",
+        analyzed_obj: G_entity,
         lookback_years: int = 3,
         granularity: str = "monthly",
     ) -> PerformanceData:
@@ -38,7 +35,7 @@ class PerformanceAnalyzer:
         end_date = datetime.now().date()
         start_date = end_date - relativedelta(years=lookback_years)
 
-        filtered_sales = self._filter_sales(analyzed_obj, obj_type, start_date, end_date)
+        filtered_sales = self._filter_sales(analyzed_obj, start_date, end_date)
 
         grouped = self._group_by_period(filtered_sales, granularity)
 
@@ -51,20 +48,19 @@ class PerformanceAnalyzer:
         avg_qty = total_qty / len(periods) if periods else 0
 
         return PerformanceData(
-            identifier=analyzed_obj.twelve_nc if obj_type == "12nc" else analyzed_obj.room,
-            type=obj_type.upper(),
+            g_entity=analyzed_obj,
             periods=periods,
+            granularity=granularity,
             total=total_qty,
             average=avg_qty,
         )
 
     def _filter_sales(
-        self, analyzed_obj: Room | TwelveNC, obj_type: str, start_date: date, end_date: date
+        self, analyzed_obj: G_entity, start_date: date, end_date: date
     ) -> List[SalesRecord]:
         """Private method to filter sales by identifier and date range
         input:
             - analyzed_obj: the Room or TwelveNC object to filter by
-            - obj_type: "room" or "12nc"
             - start_date: the start date for filtering
             - end_date: the end date for filtering
         output:
@@ -72,16 +68,18 @@ class PerformanceAnalyzer:
         """
         # DEBUG: Track filtering for specific 12NC
         target_12nc = "989606130501"
-        if obj_type == "12nc" and analyzed_obj.twelve_nc == target_12nc:
-            print(f"\n[ANALYZER DEBUG] Filtering sales for {analyzed_obj.twelve_nc}")
+        if analyzed_obj.entity_type == "12NC" and analyzed_obj.g_entity.twelve_nc == target_12nc:
+            print(f"\n[ANALYZER DEBUG] Filtering sales for {analyzed_obj.g_entity.twelve_nc}")
             print(f"[ANALYZER DEBUG] Total sales records: {len(self.sales_data)}")
             print(f"[ANALYZER DEBUG] Date range: {start_date} to {end_date}")
-            print(f"[ANALYZER DEBUG] ID type: {obj_type}")
+            print(f"[ANALYZER DEBUG] ID type: {analyzed_obj.entity_type}")
 
             # Count matches
-            matching = [s for s in self.sales_data if s.twelve_nc == analyzed_obj.twelve_nc]
+            matching = [
+                s for s in self.sales_data if s.twelve_nc == analyzed_obj.g_entity.twelve_nc
+            ]
             print(
-                f"[ANALYZER DEBUG] Records matching 12NC {analyzed_obj.twelve_nc}: {len(matching)}"
+                f"[ANALYZER DEBUG] Records matching 12NC {analyzed_obj.g_entity.twelve_nc}: {len(matching)}"
             )
 
             in_date_range = [s for s in matching if start_date <= s.date <= end_date]
@@ -89,7 +87,7 @@ class PerformanceAnalyzer:
 
             if len(matching) > 0:
                 print(
-                    f"[ANALYZER DEBUG] Sample dates for {analyzed_obj.twelve_nc}: {[s.date for s in matching[:3]]}"
+                    f"[ANALYZER DEBUG] Sample dates for {analyzed_obj.g_entity.twelve_nc}: {[s.date for s in matching[:3]]}"
                 )
                 print(
                     f"[ANALYZER DEBUG] Total quantity in matching records: {sum(s.quantity for s in matching)}"
@@ -129,7 +127,7 @@ class PerformanceAnalyzer:
 
     def multi_item_analyze(
         self,
-        analyzed_objs: List[Room | TwelveNC],
+        analyzed_objs: List[G_entity],
         objs_type: str = "12nc",
         lookback_years: int = 3,
         granularity: str = "monthly",
@@ -148,7 +146,6 @@ class PerformanceAnalyzer:
             try:
                 performance_data = self.analyze(
                     analyzed_obj=analyzed_obj,
-                    obj_type=objs_type,
                     lookback_years=lookback_years,
                     granularity=granularity,
                 )

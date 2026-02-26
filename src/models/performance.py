@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import List
+from xml.dom.minidom import G_entity
 
 
 @dataclass
@@ -17,11 +18,18 @@ class TimePeriod:
 class PerformanceData:
     """Performance summary over time"""
 
-    identifier: str
-    type: str  # "12NC" or "Room"
+    g_entity: G_entity  # Room or TwelveNC
     periods: List[TimePeriod]
+    granularity: str  # "daily", "monthly", "quarterly", "yearly"
     total: int
     average: float
+
+    def __post_init__(self):
+        """Validate data on initialization"""
+        if not self.g_entity:
+            raise ValueError("G_entity cannot be empty")
+        if not self.periods:
+            raise ValueError("Periods cannot be empty")
 
     @property
     def period_count(self) -> int:
@@ -31,3 +39,9 @@ class PerformanceData:
     def get_period(self, label: str) -> TimePeriod | None:
         """Get specific period by label"""
         return next((p for p in self.periods if p.label == label), None)
+
+    def get_type(self) -> str:
+        return self.g_entity.entity_type.upper()
+
+    def get_entity_id(self) -> str:
+        return self.g_entity.id

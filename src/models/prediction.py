@@ -1,12 +1,12 @@
 from dataclasses import dataclass
+from src.models.mapping import G_entity
 
 
 @dataclass
 class Prediction:
     """Prediction for a future period"""
 
-    identifier: str
-    type: str
+    g_entity: G_entity
     period_label: str
     predicted_quantity: float
     baseline: float
