@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import List
-from xml.dom.minidom import G_entity
+from src.models.mapping import G_entity
 
 
 @dataclass

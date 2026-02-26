@@ -1,7 +1,6 @@
 """Date utility functions for period key generation and next period labeling"""
 
 from datetime import datetime, date, timedelta
-from dateutil.relativedelta import relativedelta
 from src.utils import load_config
 
 

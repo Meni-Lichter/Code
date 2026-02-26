@@ -5,7 +5,6 @@ Configuration utility functions for loading and managing application configurati
 import json
 from pathlib import Path
 from typing import Dict, Any, Union
-import os
 
 
 def load_config(config_path: Union[str, Path] = "config/config.json") -> Dict[str, Any]:

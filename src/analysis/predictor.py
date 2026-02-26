@@ -1,9 +1,8 @@
-from typing import List, Optional
+from typing import List
 from datetime import date, datetime
 from src.models.performance import TimePeriod
 from ..models import PerformanceData, Prediction
 from ..utils import get_next_period_label
-from ..utils.config_util import load_config
 
 
 class Predictor:

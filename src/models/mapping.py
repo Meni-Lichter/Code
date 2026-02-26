@@ -1,8 +1,6 @@
 from dataclasses import dataclass
-from pyclbr import Class
-from tkinter import E
 from typing import Dict, List
-from src.models import SalesRecord
+from src.models.sales_record import SalesRecord
 
 
 @dataclass

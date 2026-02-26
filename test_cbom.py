@@ -1,14 +1,10 @@
 """Test script for CBOM reading functionality"""
 
-from logging import root
-
 from pathlib import Path
-from typing import List, Optional
-
+from typing import List
 from src.infrastructure import load_cbom
 from src.utils import load_config
 from tkinter import Tk, filedialog
-import pandas as pd
 
 
 def pick_file():
@@ -54,11 +50,6 @@ def main():
     except Exception as e:
         print(f"\nError opening file dialog: {e}")
         return
-    finally:
-        try:
-            root.destroy()
-        except:
-            pass
 
     if not cbom_path:
         print("No file selected. Exiting.")

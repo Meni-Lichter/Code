@@ -1,7 +1,7 @@
 """Performance Center - High-level service orchestrating all features"""
 
-from typing import List, Dict, Optional
-from ..models import SalesRecord, PerformanceData, Prediction, Room, TwelveNC, G_entity
+from typing import List, Dict
+from ..models import PerformanceData, Prediction, Room, TwelveNC, G_entity
 from ..analysis import PerformanceAnalyzer, Predictor
 
 
