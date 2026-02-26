@@ -36,13 +36,22 @@ def transform_cbom_data(
 
         # Convert DataFrame rows to dict entries
         for idx, row in room_df.iterrows():
-            twelve_ncs_dict[row["12NC"]] = int(row["Quantity"])
+            # Skip rows with invalid quantities
+            qty_value = str(row["Quantity"]).strip()
+            if qty_value and qty_value not in ["", "nan", "None"] and not pd.isna(row["Quantity"]):
+                try:
+                    twelve_ncs_dict[row["12NC"]] = int(float(qty_value))
+                except (ValueError, TypeError):
+                    print(
+                        f"Warning: Invalid quantity '{qty_value}' for 12NC {row['12NC']} in room {room}. Skipping."
+                    )
+                    continue
 
         rooms.append(
             Room(
-                room=room,
-                room_description=room_df["12NC_Description"].iloc[0],
-                twelve_ncs=twelve_ncs_dict,  # Use the dict, not valid_twelve_ncs
+                id=room,
+                description=room_df["12NC_Description"].iloc[0],
+                componenets=twelve_ncs_dict,  # Use the dict, not valid_twelve_ncs
                 sales_history=[],
             )
         )
@@ -79,14 +88,23 @@ def transform_cbom_data(
         valid_rooms = {}
         # Convert DataFrame rows to dict entries
         for idx, row in rooms_df.iterrows():
-            valid_rooms[row["Room"]] = int(row["Quantity"])
+            # Skip rows with invalid quantities
+            qty_value = str(row["Quantity"]).strip()
+            if qty_value and qty_value not in ["", "nan", "None"] and not pd.isna(row["Quantity"]):
+                try:
+                    valid_rooms[row["Room"]] = int(float(qty_value))
+                except (ValueError, TypeError):
+                    print(
+                        f"Warning: Invalid quantity '{qty_value}' for room {row['Room']} in 12NC {nc12}. Skipping."
+                    )
+                    continue
 
         nc12s.append(
             TwelveNC(
-                twelve_nc=nc12,
-                tnc_description=nc12_description,
-                tnc_igt=row["12NC_IGT"],
-                rooms=valid_rooms,
+                id=nc12,
+                description=nc12_description,
+                igt=row["12NC_IGT"],
+                componenets=valid_rooms,
                 sales_history=[],
             )
         )

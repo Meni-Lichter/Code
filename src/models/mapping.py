@@ -13,6 +13,11 @@ class Room:
     sales_history: List[SalesRecord]  # {12NC: SalesRecord}
 
     @property
+    def twelve_ncs(self) -> Dict[str, int]:
+        """Alias for componenets field"""
+        return self.componenets
+
+    @property
     def total_items(self) -> int:
         """Total number of items in room"""
         return sum(self.twelve_ncs.values())
@@ -43,9 +48,9 @@ class Room:
 
     def __post_init__(self):
         """Validate data on initialization"""
-        if not self.room:
+        if not self.id:
             raise ValueError("Room cannot be empty")
-        if not self.room_description:
+        if not self.description:
             raise ValueError("Room description cannot be empty")
 
 
@@ -58,6 +63,11 @@ class TwelveNC:
     igt: str
     componenets: Dict[str, int]  # {room: quantity}
     sales_history: List[SalesRecord]  # {room: SalesRecord}
+
+    @property
+    def rooms(self) -> Dict[str, int]:
+        """Alias for componenets field"""
+        return self.componenets
 
     @property
     def total_items(self) -> int:
@@ -92,7 +102,7 @@ class TwelveNC:
         """Validate data on initialization"""
         if not self.id:
             raise ValueError("12NC cannot be empty")
-        if not self.tnc_description:
+        if not self.description:
             raise ValueError("12NC description cannot be empty")
 
 
