@@ -21,14 +21,14 @@ class PerformanceCenter:
         self.nc12s = nc12s
         self.analyzer = PerformanceAnalyzer()
 
-    def analyze_obj_performance(
+    def analyze_entity_performance(
         self,
         analyzed_obj: G_entity,
         lookback_years: int = 3,
         granularity: str = "monthly",
     ) -> PerformanceData:
         """
-        Analyze historical performance for a specific object (Room or TwelveNC)
+        Analyze historical performance for a specific entity (Room or TwelveNC)
 
         Args:
             analyzed_obj: Room or TwelveNC object
@@ -88,7 +88,7 @@ class PerformanceCenter:
         elif isinstance(entity.g_entity, TwelveNC):
             for tnc_obj in self.nc12s:
                 if tnc_obj.twelve_nc == entity.g_entity.id:
-                    return tnc_obj.rooms
+                    return tnc_obj.components
         else:
             raise ValueError("Entity must be of type Room or TwelveNC")
 

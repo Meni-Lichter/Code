@@ -5,7 +5,7 @@ from src.utils import load_config
 
 
 def get_period_key(dt: date, granularity: str) -> str:
-    """Generate period key based on granularity using MM-DD-YYYY format from config
+    """Generate period key based on granularity using date format format from config
     input:
         - dt: date object
         - granularity: "daily", "monthly", "quarterly", "yearly"

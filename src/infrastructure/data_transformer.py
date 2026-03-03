@@ -123,8 +123,16 @@ def transform_cbom_data(
 
 
 def parse_ymbd_to_sales_records(ymbd_df) -> List[SalesRecord]:
-    """Parse YMBD DataFrame to SalesRecord objects"""
+    """Parse YMBD DataFrame to SalesRecord objects
+    args:
+        - ymbd_df: DataFrame with columns 'Component', 'Component Quantity', 'Confirmed Delivery Date'
+
+    returns:
+        - List of SalesRecord objects with identifier (12NC), quantity, and date
+    """
+
     sales_records = []
+    ymbd_config = load_config()["ymbd"]
 
     # Debug: Check for the specific 12NC
     target_12nc = "989606130501"
@@ -138,8 +146,7 @@ def parse_ymbd_to_sales_records(ymbd_df) -> List[SalesRecord]:
     print(f"[YMBD DEBUG] Target {target_12nc} found in raw Component column: {raw_match}")
 
     # Get date format from config
-    config = load_config()
-    date_format = config["ymbd"].get("date_format", "MM-DD-YYYY")
+    date_format = ymbd_config.get("date_format", "MM-DD-YYYY")
 
     # Convert format string to strptime format
     date_format_map = {
@@ -152,7 +159,7 @@ def parse_ymbd_to_sales_records(ymbd_df) -> List[SalesRecord]:
     matching_count = 0
     for _, row in ymbd_df.iterrows():
         try:
-            date_str = str(row["Confirmed Delivery Date"]).strip()
+            date_str = str(row[ymbd_config["columns"].get("date", "")]).strip()
 
             # Try config format first, then fallbacks (prioritize MM-DD-YYYY)
             try:
@@ -170,7 +177,7 @@ def parse_ymbd_to_sales_records(ymbd_df) -> List[SalesRecord]:
                     continue
 
             # Handle Component value - ensure it's properly formatted as a 12-digit string
-            component_value = row["Component"]
+            component_value = row[ymbd_config["columns"].get("12nc", "")]
             if pd.isna(component_value):
                 print(f"Warning: Empty Component value, skipping row")
                 continue
@@ -198,10 +205,10 @@ def parse_ymbd_to_sales_records(ymbd_df) -> List[SalesRecord]:
                     matching_count += 1
                 if matching_count <= 3:  # Only print first few matches
                     print(
-                        f"[YMBD DEBUG] ✓✓✓ Found {target_12nc}: date={sales_date}, qty={row['Component Quantity']}, raw='{component_value}'"
+                        f"[YMBD DEBUG] ✓✓✓ Found {target_12nc}: date={sales_date}, qty={row[ymbd_config['columns'].get('sales', '')]}, raw='{component_value}'"
                     )
 
-            quantity = int(row["Component Quantity"])
+            quantity = int(row[ymbd_config["columns"].get("sales", "")])
             sales_record = SalesRecord(identifier=twelve_nc, quantity=quantity, date=sales_date)
             # We'll need room mapping from CBOM
             sales_records.append(sales_record)
@@ -228,15 +235,15 @@ def parse_fit_cvi_to_sales_records(fit_cvi_df) -> List[SalesRecord]:
     sales_records = []
 
     # Get date format from config
-    config = load_config()
-    date_format = config["fit_cvi"].get("date_format", "MM-DD-YYYY")  # "DD-MMM-YYYY"
+    fit_config = load_config()["fit_cvi"]
+    date_format = fit_config.get("date_format", "DD-MMM-YYYY")  # "DD-MMM-YYYY"
 
     date_format_map = {
         "MM-DD-YYYY": "%m-%d-%Y",
         "DD-MMM-YYYY": "%d-%b-%Y",
         "YYYY-MM-DD": "%Y-%m-%d",
     }
-    strptime_format = date_format_map.get(date_format, "%m-%d-%Y")
+    strptime_format = date_format_map.get(date_format, "%d-%b-%Y")
 
     for _, row in fit_cvi_df.iterrows():
         try:
@@ -256,8 +263,8 @@ def parse_fit_cvi_to_sales_records(fit_cvi_df) -> List[SalesRecord]:
                     print(f"Warning: Could not parse date '{date_str}', skipping row")
                     continue
 
-            room = str(row["Characteristic\nCharacteristic Name"]).strip()
-            quantity = int(row["(Self)\nValue from"])
+            room = str(row[fit_config["columns"].get("room", "")]).strip()
+            quantity = int(row[fit_config["columns"].get("sales", "")])
 
             sales_record = SalesRecord(identifier=room, quantity=quantity, date=sales_date)
             sales_records.append(sales_record)

@@ -325,7 +325,7 @@ def read_file(path: Path, file_type: str, header=None, converters=None) -> pd.Da
             )
 
         print(f"#######DataFrame shape: {df.shape}#########")
-        required_columns = config[file_type].get("required_fields", [])
+        required_columns = config[file_type].get("columns", {}).values()
 
         if not set(required_columns).issubset(set(df.columns)):
             messagebox.showerror(

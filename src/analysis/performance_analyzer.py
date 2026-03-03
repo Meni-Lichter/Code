@@ -29,7 +29,7 @@ class PerformanceAnalyzer:
             - PerformanceData object containing historical performance data
         """
         self.sales_data = (
-            analyzed_obj.sales_records
+            analyzed_obj.g_entity.sales_history
         )  # Assuming Room and TwelveNC have a sales_records attribute
 
         end_date = datetime.now().date()
@@ -110,7 +110,7 @@ class PerformanceAnalyzer:
     def _group_by_period(
         self, sales: List[SalesRecord], granularity: str
     ) -> Dict[str, List[SalesRecord]]:
-        """Group sales by time period based on the specified granularity,
+        """Private method to group sales by time period based on the specified granularity,
         input:
             - sales: List of SalesRecord to group
             - granularity: "monthly" or "yearly"
