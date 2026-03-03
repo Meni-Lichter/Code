@@ -69,6 +69,7 @@ def load_cbom(cbom_path, config) -> tuple[dict, dict]:
     nc12_numbers = df.iloc[nc12_row_start_idx:, nc12_col_idx].values
     nc12_descriptions = df.iloc[nc12_row_start_idx:, nc12_desc_col_idx].values
     nc12_igts = df.iloc[nc12_row_start_idx:, nc12_igt_col_idx].values
+
     # DEBUG: Check for target 12NC in raw CBOM data
     target_12nc = "989606130501"
     print(f"\n[CBOM DEBUG] Looking for 12NC {target_12nc} in CBOM file...")
@@ -109,11 +110,18 @@ def load_cbom(cbom_path, config) -> tuple[dict, dict]:
     # Process data for each room
     ############################
     valid_room_count = 0
+
     for room_idx, room_num in enumerate(room_numbers):
         if pd.isna(room_num):
             continue
 
         room_num_normalized = normalize_identifier(room_num)
+
+        room_description = (
+            str(room_descriptions[room_idx]).strip()
+            if not pd.isna(room_descriptions[room_idx])
+            else ""
+        )
 
         if not room_num_normalized or not re.match(
             config["validation"]["patterns"]["room_normalized"], room_num_normalized
@@ -165,7 +173,10 @@ def load_cbom(cbom_path, config) -> tuple[dict, dict]:
 
         # Create DataFrame for this room (use normalized room number as key)
         if room_12ncs:
-            room_data[room_num_normalized] = pd.DataFrame(room_12ncs)
+            room_data[room_num_normalized] = {
+                "description": room_description,
+                "tnc_list": pd.DataFrame(room_12ncs),
+            }
 
     ############################
     # Process data for each 12NC
@@ -200,6 +211,14 @@ def load_cbom(cbom_path, config) -> tuple[dict, dict]:
 
         valid_12nc_count += 1
 
+        # Get 12NC description and IGT
+        nc12_desc = (
+            str(nc12_descriptions[nc12_idx]).strip()
+            if not pd.isna(nc12_descriptions[nc12_idx])
+            else ""
+        )
+        nc12_igt = str(nc12_igts[nc12_idx]).strip() if not pd.isna(nc12_igts[nc12_idx]) else ""
+
         # Collect all rooms for this 12NC
         nc12_rooms = []
         for room_idx, room_num in enumerate(room_numbers):
@@ -232,7 +251,11 @@ def load_cbom(cbom_path, config) -> tuple[dict, dict]:
 
         # Create DataFrame for this 12NC (use normalized 12NC as key)
         if nc12_rooms:
-            data_12nc[nc12_num_normalized] = pd.DataFrame(nc12_rooms)
+            data_12nc[nc12_num_normalized] = {
+                "12NC_Description": nc12_desc,
+                "12NC_IGT": nc12_igt,
+                "room_list": pd.DataFrame(nc12_rooms),
+            }
 
     # DEBUG: Final check for target 12NC in mappings
     print(
@@ -326,13 +349,16 @@ def read_file(path: Path, file_type: str, header=None, converters=None) -> pd.Da
             )
 
         print(f"#######DataFrame shape: {df.shape}#########")
-        required_columns = config[file_type].get("columns", {}).values()
 
-        if not set(required_columns).issubset(set(df.columns)):
-            messagebox.showerror(
-                "Error", f"Sheet '{relevant_sheet}' must contain columns: {required_columns}"
-            )
-            return None
+        # Only validate required columns if header was specified (not None)
+        if header is not None:
+            required_columns = config[file_type].get("columns", {}).values()
+
+            if not set(required_columns).issubset(set(df.columns)):
+                messagebox.showerror(
+                    "Error", f"Sheet '{relevant_sheet}' must contain columns: {required_columns}"
+                )
+                return None
 
         return df
 

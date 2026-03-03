@@ -47,10 +47,13 @@ def transform_cbom_data(
                     )
                     continue
 
+        # Get description from first row if available
+        description = room_df["Room_Description"].iloc[0] if len(room_df) > 0 else ""
+        
         rooms.append(
             Room(
                 id=room,
-                description=room_df["12NC_Description"].iloc[0],
+                description=description,
                 componenets=twelve_ncs_dict,  # Use the dict, not valid_twelve_ncs
                 sales_history=[],
             )
@@ -73,21 +76,21 @@ def transform_cbom_data(
             print(f"Warning: 12NC '{nc12}' does not match expected format. Skipping.")
             continue
 
-        # Extract description and rooms DataFrame
-        nc12_description = nc12_df["description"]
-        rooms_df = nc12_df["rooms"]
-
         # DEBUG: Track target through transformation
         if nc12 == target_12nc:
             print(f"[TRANSFORM DEBUG] Processing {target_12nc}...")
-            print(f"[TRANSFORM DEBUG] rooms_df type: {type(rooms_df)}")
-            print(f"[TRANSFORM DEBUG] rooms_df shape: {rooms_df.shape}")
-            print(f"[TRANSFORM DEBUG] rooms_df columns: {rooms_df.columns.tolist()}")
+            print(f"[TRANSFORM DEBUG] nc12_df type: {type(nc12_df)}")
+            print(f"[TRANSFORM DEBUG] nc12_df shape: {nc12_df.shape}")
+            print(f"[TRANSFORM DEBUG] nc12_df columns: {nc12_df.columns.tolist()}")
 
+        # Get description and IGT from first row if available
+        description = nc12_df["12NC_Description"].iloc[0] if len(nc12_df) > 0 else ""
+        igt = nc12_df["12NC_IGT"].iloc[0] if len(nc12_df) > 0 else ""
+        
         # Validate rooms and convert quantities to integers
         valid_rooms = {}
         # Convert DataFrame rows to dict entries
-        for idx, row in rooms_df.iterrows():
+        for idx, row in nc12_df.iterrows():
             # Skip rows with invalid quantities
             qty_value = str(row["Quantity"]).strip()
             if qty_value and qty_value not in ["", "nan", "None"] and not pd.isna(row["Quantity"]):
@@ -102,8 +105,8 @@ def transform_cbom_data(
         nc12s.append(
             TwelveNC(
                 id=nc12,
-                description=nc12_description,
-                igt=row["12NC_IGT"],
+                description=description,
+                igt=igt,
                 componenets=valid_rooms,
                 sales_history=[],
             )
