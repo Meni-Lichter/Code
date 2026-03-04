@@ -46,8 +46,8 @@ def get_next_period_label(granularity: str) -> str:
         if next_month > 12:
             next_month = 1
             next_year += 1
-        # Return MM-YYYY format
-        return f"{next_month:02d}-{next_year}"  # "03-2025"
+        # Return MM-DD-YYYY format (first of month)
+        return f"{next_month:02d}-01-{next_year}"  # "03-01-2025"
     elif granularity == "daily":
         next_day = now + timedelta(days=1)
         # Format: MM-DD-YYYY

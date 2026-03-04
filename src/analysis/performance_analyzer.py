@@ -2,6 +2,8 @@ from datetime import datetime, date
 from typing import List, Dict
 from collections import defaultdict
 from dateutil.relativedelta import relativedelta
+
+from src.models.mapping import Room
 from ..models import SalesRecord, PerformanceData, TimePeriod
 from ..utils import get_period_key
 from src.models import G_entity
@@ -66,46 +68,13 @@ class PerformanceAnalyzer:
         output:
             - List of SalesRecord that match the criteria
         """
-        # DEBUG: Track filtering for specific 12NC
-        target_12nc = "989606130501"
-        if analyzed_obj.entity_type == "12NC" and analyzed_obj.g_entity.twelve_nc == target_12nc:
-            print(f"\n[ANALYZER DEBUG] Filtering sales for {analyzed_obj.g_entity.twelve_nc}")
-            print(f"[ANALYZER DEBUG] Total sales records: {len(self.sales_data)}")
-            print(f"[ANALYZER DEBUG] Date range: {start_date} to {end_date}")
-            print(f"[ANALYZER DEBUG] ID type: {analyzed_obj.entity_type}")
-
-            # Count matches
-            matching = [
-                s for s in self.sales_data if s.twelve_nc == analyzed_obj.g_entity.twelve_nc
-            ]
-            print(
-                f"[ANALYZER DEBUG] Records matching 12NC {analyzed_obj.g_entity.twelve_nc}: {len(matching)}"
-            )
-
-            in_date_range = [s for s in matching if start_date <= s.date <= end_date]
-            print(f"[ANALYZER DEBUG] Records in date range: {len(in_date_range)}")
-
-            if len(matching) > 0:
-                print(
-                    f"[ANALYZER DEBUG] Sample dates for {analyzed_obj.g_entity.twelve_nc}: {[s.date for s in matching[:3]]}"
-                )
-                print(
-                    f"[ANALYZER DEBUG] Total quantity in matching records: {sum(s.quantity for s in matching)}"
-                )
-
-            if len(in_date_range) > 0:
-                print(
-                    f"[ANALYZER DEBUG] Total quantity in date range: {sum(s.quantity for s in in_date_range)}"
-                )
-                print(
-                    f"[ANALYZER DEBUG] Date range of matching: {min(s.date for s in in_date_range)} to {max(s.date for s in in_date_range)}"
-                )
-
-            # Show sample of 12NCs in data
-            unique_12ncs = list(set([s.twelve_nc for s in self.sales_data]))[:10]
-            print(f"[ANALYZER DEBUG] Sample 12NCs in data: {unique_12ncs}")
-
-        return [s for s in self.sales_data if (start_date <= s.date <= end_date)]
+        if not self.sales_data:
+            raise ValueError("No sales data available for filtering")
+        relevnat_sales = []
+        for sale in self.sales_data:
+            if start_date <= sale.date <= end_date:
+                relevnat_sales.append(sale)
+        return relevnat_sales
 
     def _group_by_period(
         self, sales: List[SalesRecord], granularity: str

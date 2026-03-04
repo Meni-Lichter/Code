@@ -1,6 +1,7 @@
 # take loaded data from data_loaders and transform it into the format needed for the application
 import re
 from typing import Dict, List
+from numpy import int_
 import pandas as pd
 from datetime import datetime
 
@@ -47,7 +48,9 @@ def transform_cbom_data(
             qty_value = str(row["Quantity"]).strip()
             if qty_value and qty_value not in ["", "nan", "None"] and not pd.isna(row["Quantity"]):
                 try:
-                    twelve_ncs_dict[row["12NC"]] = int(float(qty_value))
+                    int__value = int(float(qty_value))
+                    if int__value > 0:
+                        twelve_ncs_dict[row["12NC"]] = int__value
                 except (ValueError, TypeError):
                     print(
                         f"Warning: Invalid quantity '{qty_value}' for 12NC {row['12NC']} in room {room}. Skipping."
@@ -83,7 +86,9 @@ def transform_cbom_data(
             qty_value = str(row["Quantity"]).strip()
             if qty_value and qty_value not in ["", "nan", "None"] and not pd.isna(row["Quantity"]):
                 try:
-                    room_dict[row["Room"]] = int(float(qty_value))
+                    int__value = int(float(qty_value))
+                    if int__value > 0:
+                        room_dict[row["Room"]] = int__value
                 except (ValueError, TypeError):
                     print(
                         f"Warning: Invalid quantity '{qty_value}' for room {row['Room']} in 12NC {nc12}. Skipping."
@@ -121,9 +126,6 @@ def parse_ymbd_to_sales_records(tnc_list: List[TwelveNC], ymbd_df) -> List[Twelv
         "YYYY-MM-DD": "%Y-%m-%d",
     }
     strptime_format = date_format_map.get(date_format, "%m-%d-%Y")
-    print(
-        f"Parsing YMBD data with date format '{date_format}' using strptime format '{strptime_format}'"
-    )
     # Step 1: Build ymbd dictionary {12NC: [(date, qty), ...]} - O(n)
     ymbd_dict = {}
     skipped = 0
@@ -177,9 +179,6 @@ def parse_ymbd_to_sales_records(tnc_list: List[TwelveNC], ymbd_df) -> List[Twelv
                 sales_record = SalesRecord(identifier=tnc.id, quantity=qty, date=date)
                 tnc.sales_history.append(sales_record)
                 matched_records += 1
-    print(
-        f"YMBD: Updated {matched_12ncs}/{len(tnc_list)} TwelveNCs with {matched_records} sales records, skipped {skipped} rows"
-    )
     return tnc_list
 
 
@@ -224,18 +223,31 @@ def parse_fit_cvi_to_sales_records(room_list: List[Room], fit_cvi_df) -> List[Ro
 
             # Parse date
             date_str = str(row[fit_config["columns"].get("date", "")]).strip()
+            print("############################################################")
+            print(f"[FIT DEBUG] Parsing date: '{date_str}' for room: '{room_id}'")
+            print("############################################################")
             try:
                 sales_date = datetime.strptime(date_str, strptime_format).date()
+                print(
+                    f"[FIT DEBUG] Primary format success: '{date_str}' parsed with format '{strptime_format}'"
+                )
             except ValueError:
                 parsed = False
+                print(
+                    f"[FIT DEBUG] Primary format failed: '{date_str}' with format '{strptime_format}'"
+                )
                 for fmt in ["%d-%b-%Y", "%m-%d-%Y", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"]:
                     try:
                         sales_date = datetime.strptime(date_str, fmt).date()
                         parsed = True
+                        print(
+                            f"[FIT DEBUG] Fallback success: '{date_str}' parsed with format '{fmt}'"
+                        )
                         break
                     except ValueError:
                         continue
                 if not parsed:
+                    print(f"[FIT DEBUG] All formats failed for: '{date_str}'")
                     skipped += 1
                     continue
 
@@ -263,12 +275,7 @@ def parse_fit_cvi_to_sales_records(room_list: List[Room], fit_cvi_df) -> List[Ro
                     quantity=quantity,  # Room-level quantity applies to all components
                     date=sales_date,
                 )
-                print(f"updated wit date {sales_date.strftime('%m-%d-%Y')} and quantity {quantity}")
                 room.sales_history.append(sales_record)
                 total_records += 1
-
-    print(
-        f"FIT/CVI: Updated {matched_rooms}/{len(room_list)} rooms with {total_records} sales records, skipped {skipped} rows"
-    )
 
     return room_list

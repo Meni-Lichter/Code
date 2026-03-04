@@ -78,7 +78,6 @@ def load_cbom(cbom_path, config) -> tuple[dict, dict]:
     ############################
     valid_room_count = 0
     seen_rooms = set()
-    print(f"\n[CBOM DEBUG] Processing rooms...")
     for room_idx, room_num in enumerate(room_numbers):
         if pd.isna(room_num):
             continue
@@ -98,10 +97,8 @@ def load_cbom(cbom_path, config) -> tuple[dict, dict]:
 
         # Check for duplicates
         if room_num_normalized not in seen_rooms:
-            print(f"[CBOM DEBUG] {room_num_normalized}: {room_description}")
             seen_rooms.add(room_num_normalized)
         else:
-            print(f"[CBOM DEBUG] Duplicate room found: {room_num_normalized}")
             continue
 
         valid_room_count += 1
@@ -151,8 +148,6 @@ def load_cbom(cbom_path, config) -> tuple[dict, dict]:
     # Process data for each 12NC
     ############################
     valid_12nc_count = 0
-    print(f"\n[CBOM DEBUG] Processing 12NCs...")
-    print(f"[CBOM DEBUG] First 10 normalized 12NCs:")
     seen_12ncs = set()
 
     for nc12_idx, nc12_num in enumerate(nc12_numbers):
@@ -169,10 +164,8 @@ def load_cbom(cbom_path, config) -> tuple[dict, dict]:
 
         # Check for duplicates
         if nc12_num_normalized not in seen_12ncs:
-            print(f"[CBOM DEBUG] {nc12_num_normalized}")
             seen_12ncs.add(nc12_num_normalized)
         else:
-            print(f"[CBOM DEBUG] Duplicate 12NC found: {nc12_num_normalized}")
             continue
 
         valid_12nc_count += 1
@@ -262,7 +255,6 @@ def read_file(path: Path, file_type: str, header=None, converters=None) -> pd.Da
         ext = path.suffix.lower()
 
         relevant_sheet = pick_sheet(path, file_type, config)
-        print(f"Using sheet: {relevant_sheet} from file: {path.name}")
 
         # Prepare converters for specific file types to prevent unwanted type conversions
         converters_dict = converters.copy() if converters else {}
@@ -293,13 +285,10 @@ def read_file(path: Path, file_type: str, header=None, converters=None) -> pd.Da
                 engine="xlrd",
                 converters=converters_dict if converters_dict else None,
             )
-            print("read .xls file with pandas")
         else:
             raise ValueError(
                 f"Unsupported file format: {ext}. Only .xlsx, .xlsm, and .csv files are supported."
             )
-
-        print(f"#######DataFrame shape: {df.shape}#########")
 
         # Only validate required columns if header was specified (not None)
         if header is not None:
@@ -314,6 +303,5 @@ def read_file(path: Path, file_type: str, header=None, converters=None) -> pd.Da
         return df
 
     except Exception as e:
-        print(f"Error reading file: {e}")
         messagebox.showerror("Error", f"Could not read file:\n{e}")
         return None

@@ -38,12 +38,11 @@ class Predictor:
         """
         if not self.performance_data.periods:
             raise ValueError("No historical data available for prediction")
-        current_time = date.today().strftime("%m-%d-%Y")
-
-        if datetime.strptime(target_time, "%m-%d-%Y") < datetime.strptime(current_time, "%m-%d-%Y"):
-            raise ValueError("Target time must be in the future")
 
         granularity = self.performance_data.granularity
+
+        # Validate target_time is in the future (format depends on granularity)
+        self._validate_future_target(target_time, granularity)
 
         # Calculate baseline prediction based on method
         if method == "avg_same_period_previous_years":
@@ -67,6 +66,34 @@ class Predictor:
             buffer_percentage=buffer_percentage,
             method=method,
         )
+
+    def _validate_future_target(self, target_time: str, granularity: str) -> None:
+        """Validate that target_time is in the future based on granularity format"""
+        today = date.today()
+
+        try:
+            if granularity == "daily" or granularity == "monthly":
+                # Format: MM-DD-YYYY
+                target_date = datetime.strptime(target_time, "%m-%d-%Y").date()
+                if target_date < today:
+                    raise ValueError("Target time must be in the future")
+            elif granularity == "quarterly":
+                # Format: YYYY-QN (e.g., "2026-Q2")
+                year = int(target_time[:4])
+                quarter = int(target_time[-1])
+                current_quarter = (today.month - 1) // 3 + 1
+                if year < today.year or (year == today.year and quarter <= current_quarter):
+                    raise ValueError("Target time must be in the future")
+            elif granularity == "yearly":
+                # Format: YYYY (e.g., "2027")
+                year = int(target_time)
+                if year <= today.year:
+                    raise ValueError("Target time must be in the future")
+        except ValueError as e:
+            if "Target time must be in the future" in str(e):
+                raise
+            # If parsing fails, skip validation (let downstream handle it)
+            pass
 
     def _predict_avg_same_period_previous_years(self, target_time: str, granularity: str) -> float:
         """Predict based on average of the same period in previous years
@@ -103,12 +130,12 @@ class Predictor:
         elif granularity == "quarterly":
             # for quarterly, average the target quarter from previous n years
             recent = self.performance_data.periods
-            target_month = target_time[5:7]  # Extract quarter from target_time
+            target_month = target_time[:2]  # Extract month from MM-YYYY format
             target_quarter = int((int(target_month) - 1) / 3) + 1  # Convert month to quarter
             matching_quarters = [
                 float(p.quantity)
                 for p in recent
-                if int((int(p.label[5:7]) - 1) / 3) + 1 == target_quarter
+                if int((int(p.label[:2]) - 1) / 3) + 1 == target_quarter
             ]
             return (
                 sum(matching_quarters) / len(matching_quarters)

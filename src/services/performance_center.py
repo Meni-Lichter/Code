@@ -76,7 +76,7 @@ class PerformanceCenter:
             target_time=target_time, method=method, buffer_percentage=buffer_percentage
         )
 
-    def get_entity_components(self, entity: G_entity) -> Dict[G_entity, int] | None:
+    def get_entity_components(self, entity: G_entity) -> Dict[str, int] | None:
         """
         Get the 12NC components for a specific room from CBOM data (Feature 1)
 
@@ -88,12 +88,12 @@ class PerformanceCenter:
         """
         if isinstance(entity.g_entity, Room):
             for room_obj in self.rooms:
-                if room_obj.room == entity.g_entity.id:
+                if room_obj.id == entity.g_entity.id:
                     return room_obj.components
         elif isinstance(entity.g_entity, TwelveNC):
             for tnc_obj in self.nc12s:
-                if tnc_obj.twelve_nc == entity.g_entity.id:
-                    return tnc_obj.components
+                if tnc_obj.id == entity.g_entity.id:
+                    return tnc_obj.componenets
         else:
             raise ValueError("Entity must be of type Room or TwelveNC")
 

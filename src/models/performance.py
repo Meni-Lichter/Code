@@ -44,4 +44,4 @@ class PerformanceData:
         return self.g_entity.entity_type.upper()
 
     def get_entity_id(self) -> str:
-        return self.g_entity.id
+        return self.g_entity.g_entity.id
