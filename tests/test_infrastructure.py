@@ -3,10 +3,16 @@ Infrastructure Test Suite for Room_12NC_PerformanceCenter
 Tests data loading and transformation performance and accuracy.
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 import pytest
 import pandas as pd
 import time
-from pathlib import Path
 from tkinter import Tk, filedialog
 from typing import Optional, Tuple
 

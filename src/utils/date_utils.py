@@ -186,35 +186,33 @@ def _infer_granularity(self) -> str:
         return "monthly"
 
 
-def _extract_date_parts(self, period_label: str) -> tuple[int, int] | None:
-    """Extract date parts from period label in MM-DD-YYYY format
-    Args:
-        period_label: Period label (e.g., '02-2025', '02-24-2025', '2025-Q1')
 
+def parse_period_label_for_sorting(label: str) -> tuple:
+    """Parse period label into a sortable tuple for chronological ordering
+    
+    Args:
+        label: Period label (e.g., '02-2025', '02-24-2025', '2025-Q1', '2025')
+    
     Returns:
-        Tuple of (month, year) or None for yearly granularity
+        Tuple (year, month, day) that sorts chronologically
     """
     try:
-        if "-Q" in period_label:
-            # Quarterly format: YYYY-Qn
-            parts = period_label.split("-Q")
-            year = int(parts[0])
-            quarter = int(parts[1])
-            # Use middle month of quarter
-            month = quarter * 3 - 1
-            return (month, year)
-        elif len(period_label) == 7 and period_label[2] == "-":
-            # Monthly format: MM-YYYY
-            month = int(period_label[:2])
-            year = int(period_label[3:])
-            return (month, year)
-        elif len(period_label) == 10 and period_label.count("-") == 2:
-            # Daily format: MM-DD-YYYY
-            date_obj = datetime.strptime(period_label, "%m-%d-%Y")
-            return (date_obj.month, date_obj.year)
-        elif len(period_label) == 4 and period_label.isdigit():
-            # Yearly format: YYYY - no specific month
-            return None
-    except (ValueError, IndexError):
-        pass
-    return None
+        if "-Q" in label:  # YYYY-Q1
+            year, q = label.split("-Q")
+            quarter = int(q)
+            month = (quarter - 1) * 3 + 1  # First month of quarter
+            return (int(year), month, 1)
+        elif len(label) == 10 and label.count("-") == 2:  # MM-DD-YYYY
+            m, d, y = label.split("-")
+            return (int(y), int(m), int(d))
+        elif len(label) == 7 and label[2] == "-":  # MM-YYYY
+            m, y = label.split("-")
+            return (int(y), int(m), 1)
+        elif len(label) == 4 and label.isdigit():  # YYYY
+            return (int(label), 1, 1)
+        else:
+            # Unknown format - sort to end
+            return (9999, 12, 31)
+    except (ValueError, IndexError, AttributeError):
+        # On error, sort to end
+        return (9999, 12, 31)

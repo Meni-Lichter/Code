@@ -6,6 +6,7 @@ from dateutil.relativedelta import relativedelta
 from src.models.mapping import Room
 from ..models import SalesRecord, PerformanceData, TimePeriod
 from ..utils import get_period_key
+from ..utils.date_utils import parse_period_label_for_sorting
 from src.models import G_entity
 
 
@@ -39,15 +40,41 @@ class PerformanceAnalyzer:
 
         filtered_sales = self._filter_sales(analyzed_obj, start_date, end_date)
 
+        # DEBUG: Check filtered sales date range
+        if filtered_sales:
+            print(f"\n=== DEBUG: Filtered Sales ===")
+            print(f"Total sales: {len(filtered_sales)}")
+            print(f"Date range: {min(s.date for s in filtered_sales)} to {max(s.date for s in filtered_sales)}")
+
         grouped = self._group_by_period(filtered_sales, granularity)
 
         periods = []  # List of TimePeriod objects for the performance data
-        for period_key in sorted(grouped.keys()):
+        for period_key in grouped.keys():
             sales = grouped[period_key]
             periods.append(TimePeriod(label=period_key, quantity=sum(s.quantity for s in sales)))
 
+        # DEBUG: Check periods BEFORE sorting
+        print(f"\n=== DEBUG: Periods (BEFORE sorting) ===")
+        for p in periods[:5]:  # Show first 5
+            sort_key = parse_period_label_for_sorting(p.label)
+            print(f"  {p.label} → sort_key: {sort_key}, qty: {p.quantity}")
+        if len(periods) > 5:
+            print(f"  ... and {len(periods) - 5} more")
+
         total_qty = sum(p.quantity for p in periods)
         avg_qty = total_qty / len(periods) if periods else 0
+
+        # In the analyze() method, after creating periods:
+        periods = sorted(periods, key=lambda p: parse_period_label_for_sorting(p.label))
+            
+        # DEBUG: Check periods AFTER sorting
+        print(f"\n=== DEBUG: Periods (AFTER sorting) ===")
+        for p in periods[:5]:  # Show first 5
+            print(f"  {p.label}, qty: {p.quantity}")
+        if len(periods) > 5:
+            print(f"  ...")
+            for p in periods[-3:]:  # Show last 3
+                print(f"  {p.label}, qty: {p.quantity}")
 
         return PerformanceData(
             g_entity=analyzed_obj,

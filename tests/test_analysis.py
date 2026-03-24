@@ -3,10 +3,16 @@ Analysis Test Suite for Room_12NC_PerformanceCenter
 Tests the performance analysis functionality including data loading, transformation, and analysis.
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 import pytest
 import pandas as pd
 import time
-from pathlib import Path
 from tkinter import Tk, filedialog
 from typing import Optional, Tuple, List
 from datetime import datetime
@@ -800,7 +806,7 @@ class TestPrediction:
         print(f"  12NC ID: {target_nc.id}")
         print(f"  Period: {prediction.period_label}")
         print(f"  Baseline: {prediction.baseline:.2f}")
-        print(f"  Method: {prediction.method}")
+        print(f"  Buffer: {prediction.buffer_percentage}%")
         print(f"  Predicted: {prediction.predicted_quantity:.2f}")
         print(f"  Prediction time: {pred_time:.2f} ms")
 
@@ -870,12 +876,14 @@ class TestPrediction:
             )
 
             if len(performance_data.periods) == 0:
+                print(f"  {granularity}: No periods found, skipping")
                 continue
 
             predictor = Predictor(performance_data)
             from src.utils import get_next_period_label
 
             next_period = get_next_period_label(granularity)
+            print(f"  Next period for {granularity}: {next_period}")
 
             prediction = predictor.predict(
                 target_time=next_period, method="avg_last_n_periods", buffer_percentage=10.0

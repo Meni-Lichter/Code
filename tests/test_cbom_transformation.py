@@ -1,5 +1,12 @@
 """Test script for CBOM data transformation"""
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 from src.infrastructure import load_cbom
 from src.infrastructure.data_transformer import transform_cbom_data
 from src.utils import load_config
