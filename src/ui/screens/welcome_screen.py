@@ -4,6 +4,15 @@ import customtkinter as ctk
 from tkinter import filedialog
 from datetime import datetime
 from pathlib import Path
+import sys
+
+# Add project root to path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from src.infrastructure import load_cbom
+from src.infrastructure.data_transformer import transform_cbom_data
+from src.utils import load_config
 
 
 class WelcomeScreen(ctk.CTkFrame):
@@ -276,17 +285,62 @@ class WelcomeScreen(ctk.CTkFrame):
             return
         
         try:
-            # TODO: Call actual data loading functions
+            # Load configuration
+            config = load_config("config/config.json")
+            
+            # Load CBOM file
             self.status_label.configure(
-                text="✓ Files loaded successfully!",
+                text="⏳ Loading CBOM file...",
+                text_color="#f59e0b"
+            )
+            self.update()
+            
+            cbom_path = Path(self.loaded_files["cbom"])
+            room_data, data_12nc = load_cbom(cbom_path, config)
+            
+            if not room_data or not data_12nc:
+                self.status_label.configure(
+                    text="❌ Error: CBOM file is empty or invalid",
+                    text_color="#ef4444"
+                )
+                return
+            
+            # Transform CBOM data into Room and TwelveNC objects
+            self.status_label.configure(
+                text="⏳ Processing data...",
+                text_color="#f59e0b"
+            )
+            self.update()
+            
+            rooms, nc12s = transform_cbom_data(room_data, data_12nc, config)
+            
+            # Store the loaded data in app controller
+            self.app_controller.current_data = {
+                "rooms": rooms,
+                "nc12s": nc12s,
+                "room_data": room_data,
+                "data_12nc": data_12nc
+            }
+            
+            # Store loaded file paths
+            self.app_controller.set_loaded_files(self.loaded_files)
+            
+            # Update entity screens if they exist
+            if "entity_mode" in self.app_controller.screens:
+                entity_screen = self.app_controller.screens["entity_mode"]
+                entity_screen.reload_sample_data_from_uploaded_files(rooms, nc12s)
+            
+            # Success message with counts
+            self.status_label.configure(
+                text=f"✓ Files loaded successfully! ({len(rooms)} Rooms, {len(nc12s)} 12NCs)",
                 text_color="#10b981"
             )
-            
-            # Store loaded files in app controller for other screens to access
-            self.app_controller.set_loaded_files(self.loaded_files)
             
         except Exception as e:
             self.status_label.configure(
                 text=f"❌ Error loading files: {str(e)}",
                 text_color="#ef4444"
             )
+            print(f"Error loading files: {e}")
+            import traceback
+            traceback.print_exc()

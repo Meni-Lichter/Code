@@ -14,7 +14,7 @@ from src.ui.screens.entity_mode_screen import EntityModeScreen
 
 
 class PerformanceCenterApp(ctk.CTk):
-    """Main application window with navigation"""
+    """Main application window with navigation and screen management"""
     
     def __init__(self):
         ctk.set_appearance_mode("light")
@@ -47,7 +47,11 @@ class PerformanceCenterApp(ctk.CTk):
         self.show_screen("welcome")
         
     def _create_side_menu(self):
-        """Create side navigation menu"""
+        """Create side navigation menu
+            Args: None 
+            Does: Initializes the side menu with navigation buttons and logo
+            Returns: None
+        """
         # Look for logo in project root
         logo_path = project_root / "logo.png"
         if not logo_path.exists():
@@ -57,7 +61,11 @@ class PerformanceCenterApp(ctk.CTk):
         self.side_menu.grid(row=0, column=0, sticky="nsew")
     
     def _create_content_area(self):
-        """Create main content area"""
+        """Create main content area
+            Args: None
+            Does: Initializes the main content area where different screens will be displayed
+            Returns: None
+        """
         self.content_frame = ctk.CTkFrame(self, fg_color="#EEF2F6", corner_radius=0)
         self.content_frame.grid(row=0, column=1, sticky="nsew")
         
@@ -66,7 +74,12 @@ class PerformanceCenterApp(ctk.CTk):
         self.current_screen = None
     
     def show_screen(self, screen_name):
-        """Switch to specified screen"""
+        """Switch to specified screen
+            Args:
+                screen_name (str): The name of the screen to display
+            Does: Hides the current screen and shows the specified screen
+            Returns: None
+        """
         # Hide current screen
         if self.current_screen:
             self.current_screen.pack_forget()
@@ -106,7 +119,12 @@ class PerformanceCenterApp(ctk.CTk):
             self.side_menu._highlight_active_button(screen_name)
     
     def _create_screen(self, screen_name):
-        """Factory method to create screen instances"""
+        """Factory method to create screen instances
+            Args:
+                screen_name (str): The name of the screen to create
+            Does: Creates and returns a new screen instance based on the screen_name
+            Returns: The created screen instance or None if the screen_name is invalid
+        """
         if screen_name == "welcome":
             return WelcomeScreen(self.content_frame, self)
         elif screen_name == "12nc_mode":
@@ -129,7 +147,14 @@ class PerformanceCenterApp(ctk.CTk):
             return None
     
     def _create_placeholder_screen(self, title, description, status):
-        """Create a placeholder screen for future implementation"""
+        """Create a placeholder screen for future implementation
+            Args:
+                title (str): The title of the placeholder screen
+                description (str): A brief description of the screen's purpose
+                status (str): The status message to display (e.g., "Coming Soon")
+            Does: Creates and returns a placeholder screen with the given title, description, and status
+            Returns: The created placeholder screen instance
+        """
         frame = ctk.CTkFrame(self.content_frame, fg_color="#EEF2F6")
         
         # Title section at the top
@@ -168,13 +193,22 @@ class PerformanceCenterApp(ctk.CTk):
         return frame
     
     def set_loaded_files(self, files_dict):
-        """Store loaded files for access by other screens"""
+        """Store loaded files for access by other screens
+            Args:
+                files_dict (dict): A dictionary of loaded files
+            Does: Stores a copy of the loaded files for later access
+            Returns: None
+        """
         self.loaded_files = files_dict.copy()
         # TODO: Actually load and process the files here
         print(f"Files loaded: {self.loaded_files}")
     
     def get_loaded_files(self):
-        """Get currently loaded files"""
+        """Get currently loaded files
+            Args: None
+            Does: Returns a copy of the currently loaded files
+            Returns: dict
+        """
         return self.loaded_files
 
 
