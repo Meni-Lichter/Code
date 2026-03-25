@@ -141,9 +141,9 @@ class EntityModeScreen(ctk.CTkFrame):
         # Update current mode's all_items
         self.all_items = self.MODE_CONFIG[self.current_mode]["items"]
         
-        # Refresh dropdown if it's visible
-        if self.dropdown_visible:
-            self._populate_dropdown(self.all_items)
+        # Always refresh the dropdown listbox with new items
+        # (don't wait for it to be opened - populate it now so it's ready)
+        self._populate_dropdown(self.all_items)
     
     def _create_button(self, parent, text, command, width=120, height=48, 
                       fg_color=None, hover_color=None, is_secondary=False):
@@ -349,6 +349,8 @@ class EntityModeScreen(ctk.CTkFrame):
             border_width=2, 
             border_color=self.COLORS["border"]
         )
+        self.dropdown_frame.grid(row=1, column=0, sticky="nsew", padx=15, pady=(5, 0))
+        self.dropdown_frame.grid_remove()  # Hide initially
         
         self.dropdown_listbox = Listbox(
             self.dropdown_frame,
@@ -367,6 +369,9 @@ class EntityModeScreen(ctk.CTkFrame):
         self.dropdown_listbox.bind("<Button-1>", self._on_dropdown_select)
         
         self.dropdown_visible = False
+        
+        # Populate dropdown with initial items from current mode
+        self._populate_dropdown(self.all_items)
     
     def _create_toggle_section(self, parent):
         """Create mode toggle components (right half of search area)
@@ -596,7 +601,11 @@ class EntityModeScreen(ctk.CTkFrame):
             Does: Switches to the selected mode
             Returns: None
         """
-        self._switch_mode(self.current_mode)
+        # Always update - don't skip even if same mode
+        self._update_data_for_mode()
+        self._update_ui_for_mode()
+        self._update_search_for_mode()
+        self._update_navigation_for_mode()
     
     def _on_mode_toggle(self, value):
         """Handle mode toggle button click
@@ -606,7 +615,13 @@ class EntityModeScreen(ctk.CTkFrame):
             Returns: None
         """
         new_mode = "12nc" if value == "12NC" else "room"
-        self._switch_mode(new_mode)
+        # Only switch if different from current mode
+        if new_mode != self.current_mode:
+            self.current_mode = new_mode
+            self._update_data_for_mode()
+            self._update_ui_for_mode()
+            self._update_search_for_mode()
+            self._update_navigation_for_mode()
     
     # ============================================================================
     # SEARCH FUNCTIONALITY
@@ -615,13 +630,19 @@ class EntityModeScreen(ctk.CTkFrame):
     def _update_search_for_mode(self):
         """Update search components for current mode
             Args: None
-            Does: Updates the search entry placeholder and clears the search variable
+            Does: Updates the search entry and dropdown for the current mode
             Returns: None
         """
         mode_display = self.MODE_CONFIG[self.current_mode]["display"]
         self.search_entry.configure(placeholder_text=f"Type to search {mode_display}...")
         self.search_var.set("")
+        # Populate dropdown with the new mode's items
+        self._populate_dropdown(self.all_items)
         self._hide_dropdown()
+    
+    # ============================================================================
+    # DROPDOWN METHODS
+    # ============================================================================
     
     def _toggle_dropdown(self):
         """Toggle dropdown visibility
@@ -634,7 +655,7 @@ class EntityModeScreen(ctk.CTkFrame):
         else:
             self._populate_dropdown(self.all_items)
             self._show_dropdown()
-    
+
     def _populate_dropdown(self, items):
         """Populate dropdown with items
             Args:
@@ -645,7 +666,7 @@ class EntityModeScreen(ctk.CTkFrame):
         self.dropdown_listbox.delete(0, tk.END)
         for item in items:
             self.dropdown_listbox.insert(tk.END, item)
-    
+
     def _filter_and_show_dropdown(self, search_text):
         """Filter items and show dropdown (optimized - no double clearing)
             Args:
@@ -656,9 +677,9 @@ class EntityModeScreen(ctk.CTkFrame):
         if not search_text:
             self._hide_dropdown()
             return
-        
+
         filtered = [item for item in self.all_items if search_text.lower() in item.lower()]
-        
+
         # Clear and populate in one step
         self.dropdown_listbox.delete(0, tk.END)
         if filtered:
@@ -666,9 +687,9 @@ class EntityModeScreen(ctk.CTkFrame):
                 self.dropdown_listbox.insert(tk.END, item)
         else:
             self.dropdown_listbox.insert(tk.END, "No matches found")
-        
+
         self._show_dropdown()
-    
+
     def _on_search_change(self, *args):
         """Handle search text changes
             Args: None
@@ -677,7 +698,7 @@ class EntityModeScreen(ctk.CTkFrame):
         """
         search_text = self.search_var.get().strip()
         self._filter_and_show_dropdown(search_text)
-    
+
     def _on_entry_focus(self, event):
         """Show all items when entry gets focus
             Args: None
@@ -687,7 +708,7 @@ class EntityModeScreen(ctk.CTkFrame):
         if not self.search_var.get().strip():
             self._populate_dropdown(self.all_items)
             self._show_dropdown()
-    
+
     def _on_entry_blur(self, event):
         """Hide dropdown when losing focus
             Args: None
@@ -695,7 +716,7 @@ class EntityModeScreen(ctk.CTkFrame):
             Returns: None
         """
         self.after(200, self._check_hide_dropdown)
-    
+
     def _check_hide_dropdown(self):
         """Check if dropdown should be hidden
             Args: None
@@ -708,7 +729,7 @@ class EntityModeScreen(ctk.CTkFrame):
         except tk.TclError:
             # Widget no longer exists
             pass
-    
+
     def _on_dropdown_select(self, event):
         """Handle dropdown selection and click (consolidated)
             Args:
@@ -725,7 +746,7 @@ class EntityModeScreen(ctk.CTkFrame):
                 if event.type == tk.EventType.ButtonPress:
                     self._hide_dropdown()
                     self.search_entry.focus()
-    
+
     def _show_dropdown(self):
         """Show the dropdown list
             Args: None
@@ -733,10 +754,10 @@ class EntityModeScreen(ctk.CTkFrame):
             Returns: None
         """
         if not self.dropdown_visible:
-            self.dropdown_frame.pack(fill="x", pady=(5, 0), padx=(15, 15))
+            self.dropdown_frame.grid()
             self.dropdown_visible = True
             self.dropdown_toggle_btn.configure(text="▲")
-    
+
     def _hide_dropdown(self):
         """Hide the dropdown list
             Args: None
@@ -744,10 +765,10 @@ class EntityModeScreen(ctk.CTkFrame):
             Returns: None
         """
         if self.dropdown_visible:
-            self.dropdown_frame.pack_forget()
+            self.dropdown_frame.grid_remove()
             self.dropdown_visible = False
             self.dropdown_toggle_btn.configure(text="▼")
-    
+
     def _on_search_button(self):
         """Handle search button click
             Args: None

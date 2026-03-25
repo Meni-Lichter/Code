@@ -68,6 +68,8 @@ class PerformanceCenterApp(ctk.CTk):
         """
         self.content_frame = ctk.CTkFrame(self, fg_color="#EEF2F6", corner_radius=0)
         self.content_frame.grid(row=0, column=1, sticky="nsew")
+        self.content_frame.grid_rowconfigure(0, weight=1)
+        self.content_frame.grid_columnconfigure(0, weight=1)
         
         # Dictionary to hold screen instances
         self.screens = {}
@@ -82,7 +84,7 @@ class PerformanceCenterApp(ctk.CTk):
         """
         # Hide current screen
         if self.current_screen:
-            self.current_screen.pack_forget()
+            self.current_screen.grid_remove()
         
         # For entity mode screens (12nc/room), check if we need to switch mode
         if screen_name in ["12nc_mode", "room_mode"]:
@@ -103,7 +105,7 @@ class PerformanceCenterApp(ctk.CTk):
             
             # Show the entity screen
             self.current_screen = entity_screen
-            self.current_screen.pack(fill="both", expand=True)
+            self.current_screen.grid(row=0, column=0, sticky="nsew")
         else:
             # For other screens, use normal screen creation
             if screen_name not in self.screens:
@@ -112,7 +114,7 @@ class PerformanceCenterApp(ctk.CTk):
             # Show requested screen
             self.current_screen = self.screens[screen_name]
             if self.current_screen:
-                self.current_screen.pack(fill="both", expand=True)
+                self.current_screen.grid(row=0, column=0, sticky="nsew")
         
         # Update side menu highlight
         if hasattr(self, 'side_menu'):
