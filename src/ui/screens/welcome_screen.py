@@ -43,7 +43,7 @@ class WelcomeScreen(ctk.CTkFrame):
         title = ctk.CTkLabel(
             title_frame,
             text="Welcome to Play Room",
-            font=ctk.CTkFont(family="Segoe UI", size=42, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=48, weight="bold"),
             text_color="#1E2A33"
         )
         title.pack()
@@ -51,7 +51,7 @@ class WelcomeScreen(ctk.CTkFrame):
         description = ctk.CTkLabel(
             title_frame,
             text="Performance analysis and demand prediction for 12NC components and Rooms",
-            font=ctk.CTkFont(family="Segoe UI", size=16),
+            font=ctk.CTkFont(family="Segoe UI", size=18),
             text_color="#5F6E7C"
         )
         description.pack(pady=(8, 0))
@@ -59,7 +59,7 @@ class WelcomeScreen(ctk.CTkFrame):
         date_label = ctk.CTkLabel(
             title_frame,
             text=f"Today: {datetime.now().strftime('%B %d, %Y')}",
-            font=ctk.CTkFont(family="Segoe UI", size=18),
+            font=ctk.CTkFont(family="Segoe UI", size=20),
             text_color="#5F6E7C"
         )
         date_label.pack(pady=8)
@@ -73,7 +73,7 @@ class WelcomeScreen(ctk.CTkFrame):
         section_title = ctk.CTkLabel(
             file_frame,
             text="📁 Load Data Files",
-            font=ctk.CTkFont(family="Segoe UI", size=24, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=26, weight="bold"),
             text_color="#1E2A33"
         )
         section_title.pack(pady=25, padx=25, anchor="w")
@@ -94,12 +94,12 @@ class WelcomeScreen(ctk.CTkFrame):
             text="Load All Files",
             command=self.load_files,
             width=220,
-            height=50,
+            height=52,
             corner_radius=8,
             fg_color="#35586E",
             hover_color="#2F4F63",
             text_color="#FFFFFF",
-            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold")
+            font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold")
         )
         load_btn.pack(pady=25)
         
@@ -107,7 +107,7 @@ class WelcomeScreen(ctk.CTkFrame):
         self.status_label = ctk.CTkLabel(
             file_frame,
             text="",
-            font=ctk.CTkFont(family="Segoe UI", size=14),
+            font=ctk.CTkFont(family="Segoe UI", size=16),
             text_color="#10b981"
         )
         self.status_label.pack(pady=(0, 25))
@@ -122,7 +122,7 @@ class WelcomeScreen(ctk.CTkFrame):
         label_widget = ctk.CTkLabel(
             row_frame,
             text=label,
-            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
             text_color="#1E2A33",
             width=140,
             anchor="w"
@@ -141,7 +141,7 @@ class WelcomeScreen(ctk.CTkFrame):
             fg_color="#FFFFFF",
             border_color="#D8E0E8",
             text_color="#5F6E7C",
-            font=ctk.CTkFont(family="Segoe UI", size=13)
+            font=ctk.CTkFont(family="Segoe UI", size=15)
         )
         path_entry.pack(side="left", padx=8)
         
@@ -158,7 +158,7 @@ class WelcomeScreen(ctk.CTkFrame):
             text_color="#2B3A44",
             border_width=1,
             border_color="#D8E0E8",
-            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold")
+            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold")
         )
         browse_btn.pack(side="left", padx=8)
         
@@ -166,7 +166,7 @@ class WelcomeScreen(ctk.CTkFrame):
         desc_label = ctk.CTkLabel(
             row_frame,
             text=description,
-            font=ctk.CTkFont(family="Segoe UI", size=13),
+            font=ctk.CTkFont(family="Segoe UI", size=15),
             text_color="#8A98A6"
         )
         desc_label.pack(side="left", padx=12)
@@ -182,7 +182,7 @@ class WelcomeScreen(ctk.CTkFrame):
         section_title = ctk.CTkLabel(
             info_frame,
             text="📊 System Capabilities",
-            font=ctk.CTkFont(family="Segoe UI", size=24, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=26, weight="bold"),
             text_color="#1E2A33"
         )
         section_title.pack(pady=25, padx=25, anchor="w")
@@ -201,7 +201,7 @@ class WelcomeScreen(ctk.CTkFrame):
             cap_label = ctk.CTkLabel(
                 info_frame,
                 text=capability,
-                font=ctk.CTkFont(family="Segoe UI", size=15),
+                font=ctk.CTkFont(family="Segoe UI", size=17),
                 text_color="#5F6E7C",
                 anchor="w"
             )
@@ -241,14 +241,14 @@ class WelcomeScreen(ctk.CTkFrame):
                 text=text,
                 command=lambda s=screen: self.app_controller.show_screen(s),
                 width=200,
-                height=50,
+                height=52,
                 corner_radius=10,
                 fg_color=color,
                 hover_color=hover_color,
                 text_color=text_color,
                 border_width=border_width,
                 border_color=border_color,
-                font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold")
+                font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold")
             )
             btn.pack(side="left", padx=12)
     

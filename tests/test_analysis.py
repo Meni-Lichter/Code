@@ -31,6 +31,7 @@ from src.models.prediction import Prediction
 from src.analysis.performance_analyzer import PerformanceAnalyzer
 from src.analysis.predictor import Predictor
 from src.utils.config_util import load_config
+from src.utils.string_utils import normalize_identifier
 
 
 # ============================================================================
@@ -119,7 +120,6 @@ def prepared_data(cbom_file, ymbd_file, fit_file, config):
     if fit_file:
         fit_df = read_file(fit_file, "fit_cvi", header=0)
         rooms = parse_fit_cvi_to_sales_records(rooms, fit_df)
-
     return rooms, nc12s
 
 
@@ -242,15 +242,26 @@ class TestAnalysis:
         """Test analyzing a single 12NC"""
         rooms, nc12s = prepared_data
 
-        # Find a 12NC with sales data
+        # Find the target 12NC: 9896-061-31161
+        target_12nc_original = "9896-061-31161"
+        target_12nc_id = normalize_identifier(target_12nc_original)
+        
+        # Check if target exists
         target_nc = None
         for nc in nc12s:
-            if len(nc.sales_history) > 0:
+            if nc.id == target_12nc_id:
                 target_nc = nc
                 break
-
+        
         if not target_nc:
-            pytest.skip("No 12NC with sales data found")
+            # Try to find 12NCs that start with the first 8 digits
+            prefix = target_12nc_id[:8]
+            similar = [nc for nc in nc12s if nc.id.startswith(prefix)]
+            if similar:
+                print(f"\nFound {len(similar)} 12NCs starting with '{prefix}':")
+                for nc in similar:
+                    print(f"  - {nc.id}")
+            pytest.skip(f"Target 12NC {target_12nc_original} (normalized: {target_12nc_id}) not found in test data")
 
         analyzer = PerformanceAnalyzer()
         start_time = time.perf_counter()

@@ -139,7 +139,7 @@ class PerformanceCenterApp(ctk.CTk):
         title_label = ctk.CTkLabel(
             title_container,
             text=title,
-            font=ctk.CTkFont(family="Segoe UI", size=32, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=36, weight="bold"),
             text_color="#1E2A33"
         )
         title_label.pack()
@@ -147,7 +147,7 @@ class PerformanceCenterApp(ctk.CTk):
         desc_label = ctk.CTkLabel(
             title_container,
             text=description,
-            font=ctk.CTkFont(family="Segoe UI", size=15),
+            font=ctk.CTkFont(family="Segoe UI", size=17),
             text_color="#5F6E7C"
         )
         desc_label.pack(pady=(5, 0))
@@ -159,7 +159,7 @@ class PerformanceCenterApp(ctk.CTk):
         status_label = ctk.CTkLabel(
             center_frame,
             text=status,
-            font=ctk.CTkFont(family="Segoe UI", size=24, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=26, weight="bold"),
             text_color="#8A98A6"
         )
         status_label.pack()

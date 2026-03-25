@@ -52,7 +52,7 @@ class EntityModeScreen(ctk.CTkFrame):
         self.title_label = ctk.CTkLabel(
             header_frame,
             text=mode_title,
-            font=ctk.CTkFont(family="Segoe UI", size=32, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=36, weight="bold"),
             text_color="#1E2A33"
         )
         self.title_label.pack()
@@ -62,7 +62,7 @@ class EntityModeScreen(ctk.CTkFrame):
         self.description_label = ctk.CTkLabel(
             header_frame,
             text=mode_desc,
-            font=ctk.CTkFont(family="Segoe UI", size=15),
+            font=ctk.CTkFont(family="Segoe UI", size=17),
             text_color="#5F6E7C"
         )
         self.description_label.pack(pady=(5, 0))
@@ -87,7 +87,7 @@ class EntityModeScreen(ctk.CTkFrame):
         search_label = ctk.CTkLabel(
             label_frame,
             text="🔍 Search:",
-            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
             text_color="#1E2A33"
         )
         search_label.pack()
@@ -95,7 +95,7 @@ class EntityModeScreen(ctk.CTkFrame):
         mode_hint = ctk.CTkLabel(
             label_frame,
             text=f"({self.current_mode.upper()})",
-            font=ctk.CTkFont(family="Segoe UI", size=11),
+            font=ctk.CTkFont(family="Segoe UI", size=13),
             text_color="#8A98A6"
         )
         mode_hint.pack()
@@ -113,8 +113,8 @@ class EntityModeScreen(ctk.CTkFrame):
             textvariable=self.search_var,
             placeholder_text=f"Type to search {self.current_mode.upper()}...",
             width=400,
-            height=45,
-            font=ctk.CTkFont(family="Segoe UI", size=15),
+            height=48,
+            font=ctk.CTkFont(family="Segoe UI", size=17),
             fg_color="#FFFFFF",
             border_color="#D8E0E8",
             border_width=2,
@@ -130,7 +130,7 @@ class EntityModeScreen(ctk.CTkFrame):
         
         self.dropdown_listbox = Listbox(
             self.dropdown_frame,
-            font=("Segoe UI", 13),
+            font=("Segoe UI", 15),
             bg="#FFFFFF",
             fg="#1E2A33",
             selectbackground="#E3EDF5",
@@ -152,12 +152,12 @@ class EntityModeScreen(ctk.CTkFrame):
             text="Search",
             command=self._on_search_button,
             width=120,
-            height=45,
+            height=48,
             corner_radius=8,
             fg_color="#35586E",
             hover_color="#2F4F63",
             text_color="#FFFFFF",
-            font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold")
+            font=ctk.CTkFont(family="Segoe UI", size=17, weight="bold")
         )
         search_btn.pack(side="left")
         self._create_tooltip(search_btn, f"Search for {self.current_mode.upper()}")
@@ -217,7 +217,7 @@ class EntityModeScreen(ctk.CTkFrame):
         title_label = ctk.CTkLabel(
             header,
             text=title,
-            font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
             text_color="#1E2A33",
             anchor="w"
         )
@@ -231,15 +231,15 @@ class EntityModeScreen(ctk.CTkFrame):
         excel_btn = ctk.CTkButton(
             export_frame,
             text="📊",
-            width=35,
-            height=35,
+            width=38,
+            height=38,
             corner_radius=6,
             fg_color="#E7EDF3",
             hover_color="#DCE4EC",
             text_color="#2B3A44",
             border_width=1,
             border_color="#D8E0E8",
-            font=ctk.CTkFont(size=16),
+            font=ctk.CTkFont(size=18),
             command=lambda: self._export_panel(title, "excel")
         )
         excel_btn.pack(side="left", padx=2)
@@ -249,15 +249,15 @@ class EntityModeScreen(ctk.CTkFrame):
         png_btn = ctk.CTkButton(
             export_frame,
             text="🖼️",
-            width=35,
-            height=35,
+            width=38,
+            height=38,
             corner_radius=6,
             fg_color="#E7EDF3",
             hover_color="#DCE4EC",
             text_color="#2B3A44",
             border_width=1,
             border_color="#D8E0E8",
-            font=ctk.CTkFont(size=16),
+            font=ctk.CTkFont(size=18),
             command=lambda: self._export_panel(title, "png")
         )
         png_btn.pack(side="left", padx=2)
@@ -275,7 +275,7 @@ class EntityModeScreen(ctk.CTkFrame):
         placeholder = ctk.CTkLabel(
             content,
             text=content_text,
-            font=ctk.CTkFont(family="Segoe UI", size=16),
+            font=ctk.CTkFont(family="Segoe UI", size=18),
             text_color="#8A98A6"
         )
         placeholder.pack(expand=True, pady=50)
@@ -284,7 +284,7 @@ class EntityModeScreen(ctk.CTkFrame):
         coming_soon = ctk.CTkLabel(
             content,
             text=f"Implementation: Stage 3+",
-            font=ctk.CTkFont(family="Segoe UI", size=13),
+            font=ctk.CTkFont(family="Segoe UI", size=15),
             text_color="#A8B3BD"
         )
         coming_soon.pack(pady=(0, 50))

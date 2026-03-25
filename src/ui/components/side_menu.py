@@ -42,7 +42,7 @@ class SideMenu(ctk.CTkFrame):
                 logo_label = ctk.CTkLabel(
                     logo_frame, 
                     text="Performance\nCenter", 
-                    font=ctk.CTkFont(family="Segoe UI", size=24, weight="bold"),
+                    font=ctk.CTkFont(family="Segoe UI", size=28, weight="bold"),
                     text_color="#1F5A73"
                 )
                 logo_label.pack()
@@ -51,7 +51,7 @@ class SideMenu(ctk.CTkFrame):
             logo_label = ctk.CTkLabel(
                 logo_frame, 
                 text="Play\nRoom", 
-                font=ctk.CTkFont(family="Segoe UI", size=32, weight="bold"),
+                font=ctk.CTkFont(family="Segoe UI", size=36, weight="bold"),
                 text_color="#35586E"
             )
             logo_label.pack()
@@ -80,11 +80,11 @@ class SideMenu(ctk.CTkFrame):
                 text=text,
                 command=lambda s=screen_name: self.navigate_to(s),
                 width=220,
-                height=45,
+                height=50,
                 corner_radius=8,
                 fg_color="#35586E",
                 hover_color="#2F4F63",
-                font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
+                font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
                 anchor="w",
                 text_color="#FFFFFF",
                 border_width=0
@@ -104,12 +104,48 @@ class SideMenu(ctk.CTkFrame):
         help_label = ctk.CTkLabel(
             help_frame,
             text="Need Help?",
-            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
             text_color="#1E2A33"
         )
         help_label.pack(pady=5)
         
-        # Contact row with copy button
+        # Developer name row with copy button
+        developer_row = ctk.CTkFrame(help_frame, fg_color="transparent")
+        developer_row.pack(pady=5)
+        
+        # Developer name entry (readonly)
+        self.developer_entry = ctk.CTkEntry(
+            developer_row,
+            width=150,
+            height=38,
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            fg_color="#FFFFFF",
+            border_color="#D8E0E8",
+            text_color="#5F6E7C",
+            justify="center"
+        )
+        self.developer_entry.insert(0, "Meni Lichter")
+        self.developer_entry.configure(state="readonly")
+        self.developer_entry.pack(side="left", padx=(0, 5))
+        
+        # Copy button for developer name
+        copy_dev_btn = ctk.CTkButton(
+            developer_row,
+            text="📋",
+            width=38,
+            height=38,
+            corner_radius=6,
+            fg_color="#4A8F93",
+            hover_color="#3F7F83",
+            font=ctk.CTkFont(size=18),
+            command=self.copy_developer
+        )
+        copy_dev_btn.pack(side="left")
+        
+        # Create tooltip
+        self._create_tooltip(copy_dev_btn, "Copy developer name to clipboard")
+        
+        # Email contact row with copy button
         contact_row = ctk.CTkFrame(help_frame, fg_color="transparent")
         contact_row.pack(pady=5)
         
@@ -117,8 +153,8 @@ class SideMenu(ctk.CTkFrame):
         self.contact_entry = ctk.CTkEntry(
             contact_row,
             width=150,
-            height=35,
-            font=ctk.CTkFont(family="Segoe UI", size=11),
+            height=38,
+            font=ctk.CTkFont(family="Segoe UI", size=13),
             fg_color="#FFFFFF",
             border_color="#D8E0E8",
             text_color="#5F6E7C",
@@ -132,12 +168,12 @@ class SideMenu(ctk.CTkFrame):
         copy_btn = ctk.CTkButton(
             contact_row,
             text="📋",
-            width=35,
-            height=35,
+            width=38,
+            height=38,
             corner_radius=6,
             fg_color="#4A8F93",
             hover_color="#3F7F83",
-            font=ctk.CTkFont(size=16),
+            font=ctk.CTkFont(size=18),
             command=self.copy_email
         )
         copy_btn.pack(side="left")
@@ -161,10 +197,23 @@ class SideMenu(ctk.CTkFrame):
     def copy_email(self):
         """Copy email to clipboard"""
         email = self.contact_entry.get()
+        self._copy_to_clipboard(email, "Email")
+    
+    def copy_developer(self):
+        """Copy developer name to clipboard"""
+        developer = self.developer_entry.get()
+        self._copy_to_clipboard(developer, "Developer name")
+    
+    def _copy_to_clipboard(self, text, label):
+        """Generic function to copy text to clipboard and show confirmation
+        
+        Args:
+            text: The text to copy to clipboard
+            label: Human-readable label for the confirmation message
+        """
         self.clipboard_clear()
-        self.clipboard_append(email)
-        # Show brief confirmation
-        messagebox.showinfo("Copied", f"Email copied to clipboard:\n{email}")
+        self.clipboard_append(text)
+        messagebox.showinfo("Copied", f"{label} copied to clipboard:\n{text}")
     
     def _create_tooltip(self, widget, text):
         """Create a tooltip for a widget"""
@@ -187,9 +236,9 @@ class SideMenu(ctk.CTkFrame):
                 foreground="#1E2A33",
                 relief="solid",
                 borderwidth=1,
-                font=("Segoe UI", 10),
-                padx=8,
-                pady=4
+                font=("Segoe UI", 12),
+                padx=10,
+                pady=6
             )
             label.pack()
         
