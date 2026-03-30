@@ -94,7 +94,14 @@ class EntityModeScreen(ctk.CTkFrame):
     # ============================================================================
     
     def _get_font(self, family="Segoe UI", size=15, weight="normal"):
-        """Get or create cached font to avoid memory overhead"""
+        """
+            Args:
+                family: The font family (default "Segoe UI")
+                size: The font size (default 15)
+                weight: The font weight (default "normal")
+            Does: Retrieves a cached font if it exists, or creates and caches it if not
+            Returns: The requested font instance
+        """
         key = (family, size, weight)
         if key not in self._font_cache:
             self._font_cache[key] = ctk.CTkFont(family=family, size=size, weight=weight)  # type: ignore
@@ -102,9 +109,9 @@ class EntityModeScreen(ctk.CTkFrame):
     
     def _initialize_sample_data_from_controller(self):
         """Load sample data from app controller's loaded CBOM files
-        
-        Checks if the app controller has loaded Room and TwelveNC data from CBOM files,
-        and populates MODE_CONFIG items with actual entity IDs from those files.
+            Args: None
+            Does: Initializes the MODE_CONFIG items with entity IDs extracted from the app controller's current data, if available
+            Returns: None
         """
         try:
             # Try to get loaded data from the app controller
@@ -125,10 +132,11 @@ class EntityModeScreen(ctk.CTkFrame):
     
     def reload_sample_data_from_uploaded_files(self, rooms_list, nc12_list):
         """Update sample data when new CBOM files are uploaded and processed
-        
         Args:
             rooms_list: List of Room objects from data_transformer
             nc12_list: List of TwelveNC objects from data_transformer
+        Does: Updates the MODE_CONFIG items with new entity IDs from the uploaded files and refreshes the dropdown
+        Returns: None
         """
         # Extract and sort IDs from the loaded data
         room_ids = sorted([room.id for room in rooms_list]) if rooms_list else []
@@ -158,7 +166,7 @@ class EntityModeScreen(ctk.CTkFrame):
                 hover_color: The background color when hovering (optional)
                 is_secondary: Whether to use secondary styling (optional)
             Does: Creates and returns a styled button with the specified properties
-            returns: The created button instance  
+            Returns: The created button instance  
         """
         if fg_color is None:
             fg_color = self.COLORS["accent_dark"] if not is_secondary else self.COLORS["bg_light"]
@@ -678,7 +686,7 @@ class EntityModeScreen(ctk.CTkFrame):
             self._hide_dropdown()
             return
 
-        filtered = [item for item in self.all_items if search_text.lower() in item.lower()]
+        filtered = [item for item in self.all_items if item.lower().startswith(search_text.lower())]
 
         # Clear and populate in one step
         self.dropdown_listbox.delete(0, tk.END)
@@ -702,7 +710,7 @@ class EntityModeScreen(ctk.CTkFrame):
     def _on_entry_focus(self, event):
         """Show all items when entry gets focus
             Args: None
-            Does: Shows the dropdown with all items when the search entry gains focus, if the search text is empty
+            Does: Shows the dropdown with all items when the search entry gains focus
             Returns: None
         """
         if not self.search_var.get().strip():
@@ -729,7 +737,7 @@ class EntityModeScreen(ctk.CTkFrame):
         except tk.TclError:
             # Widget no longer exists
             pass
-
+    
     def _on_dropdown_select(self, event):
         """Handle dropdown selection and click (consolidated)
             Args:
@@ -746,7 +754,7 @@ class EntityModeScreen(ctk.CTkFrame):
                 if event.type == tk.EventType.ButtonPress:
                     self._hide_dropdown()
                     self.search_entry.focus()
-
+    
     def _show_dropdown(self):
         """Show the dropdown list
             Args: None
