@@ -643,7 +643,7 @@ class EntityModeScreen(ctk.CTkFrame):
         self.title_label.configure(text=mode_config["title"])
         self.description_label.configure(text=mode_config["description"])
         self.mode_toggle.set(mode_config["display"])
-    
+            
     def _update_navigation_for_mode(self):
         """Update side menu navigation highlight
             Args: None
@@ -686,7 +686,11 @@ class EntityModeScreen(ctk.CTkFrame):
         """
         mode_display = self.MODE_CONFIG[self.current_mode]["display"]
         self.search_entry.configure(placeholder_text=f"Type to search {mode_display}...")
-        self.search_var.set("")
+        
+        # Restore last searched entity for this mode
+        last_entity = self.selected_entity_12nc if self.current_mode == "12nc" else self.selected_entity_room
+        self.search_var.set(last_entity if last_entity else "")
+        
         # Populate dropdown with the new mode's items
         self._populate_dropdown(self.all_items)
         self._hide_dropdown()
@@ -921,6 +925,8 @@ class EntityModeScreen(ctk.CTkFrame):
         selected_entity = self.selected_entity_12nc if self.current_mode == "12nc" else self.selected_entity_room
         
         if not selected_entity:
+            # Clear panels if no entity selected for this mode
+            self._clear_panels()
             return
         
         # Get the entity object from current_data
@@ -934,6 +940,24 @@ class EntityModeScreen(ctk.CTkFrame):
             self._update_prediction_panel(entity_obj)
         else:
             print(f"Entity not found: {selected_entity}")
+    
+    def _clear_panels(self):
+        """Clear all panel content
+            Args: None
+            Does: Clears the content of all panels
+            Returns: None
+        """
+        for panel in [self.details_panel, self.belonging_panel, 
+                      self.performance_panel, self.prediction_panel]:
+            for child in panel.winfo_children():
+                if isinstance(child, ctk.CTkFrame):
+                    try:
+                        grid_info = child.grid_info()
+                        if grid_info and grid_info.get('row') == 1:
+                            for widget in child.winfo_children():
+                                widget.destroy()
+                    except:
+                        continue
     
     def _get_entity_object(self, entity_id):
         """Get the entity object from current_data

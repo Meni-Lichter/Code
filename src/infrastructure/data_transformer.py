@@ -76,7 +76,7 @@ def transform_cbom_data(
         description = (
             data_12nc[nc12]["12NC_Description"] if "12NC_Description" in data_12nc[nc12] else ""
         )
-        igt = data_12nc[nc12]["IGT_12NC"] if "IGT_12NC" in data_12nc[nc12] else ""
+        igt = data_12nc[nc12]["12NC_IGT"] if "12NC_IGT" in data_12nc[nc12] else ""
 
         room_dict = {}  # Not Dict[Room, int]
 
@@ -172,6 +172,7 @@ def parse_ymbd_to_sales_records(tnc_list: List[TwelveNC], ymbd_df) -> List[Twelv
         except Exception as e:
             skipped += 1
             continue
+    
     matched_12ncs = 0
     matched_records = 0
     for tnc in tnc_list:
@@ -181,6 +182,7 @@ def parse_ymbd_to_sales_records(tnc_list: List[TwelveNC], ymbd_df) -> List[Twelv
                 sales_record = SalesRecord(identifier=tnc.id, quantity=qty, date=date)
                 tnc.sales_history.append(sales_record)
                 matched_records += 1
+    
     return tnc_list
 
 

@@ -11,7 +11,8 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.infrastructure import load_cbom
-from src.infrastructure.data_transformer import transform_cbom_data
+from src.infrastructure.data_loaders import read_file
+from src.infrastructure.data_transformer import transform_cbom_data, parse_ymbd_to_sales_records, parse_fit_cvi_to_sales_records
 from src.utils import load_config
 from src.utils.config_util import get_last_files, save_last_files
 
@@ -317,6 +318,30 @@ class WelcomeScreen(ctk.CTkFrame):
             self.update()
             
             rooms, nc12s = transform_cbom_data(room_data, data_12nc, config)
+            
+            # Load and process YMBD sales data for 12NCs
+            self.status_label.configure(
+                text="⏳ Loading YMBD sales data...",
+                text_color="#f59e0b"
+            )
+            self.update()
+            
+            ymbd_path = Path(self.loaded_files["ymbd"])
+            ymbd_df = read_file(ymbd_path, "ymbd", header=0)
+            if ymbd_df is not None:
+                nc12s = parse_ymbd_to_sales_records(nc12s, ymbd_df)
+            
+            # Load and process FIT_CVI sales data for Rooms
+            self.status_label.configure(
+                text="⏳ Loading FIT_CVI sales data...",
+                text_color="#f59e0b"
+            )
+            self.update()
+            
+            fit_cvi_path = Path(self.loaded_files["fit_cvi"])
+            fit_cvi_df = read_file(fit_cvi_path, "fit_cvi", header=0)
+            if fit_cvi_df is not None:
+                rooms = parse_fit_cvi_to_sales_records(rooms, fit_cvi_df)
             
             # Store the loaded data in app controller
             self.app_controller.current_data = {

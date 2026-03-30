@@ -136,7 +136,7 @@ class DetailsPanel:
         """
         self._add_detail_separator(parent)
         self._add_detail_row(parent, "Total Components:", str(len(room_obj.componenets)))
-        self._add_detail_row(parent, "Total Items:", str(room_obj.total_items))
+        self._add_detail_row(parent, "Overall Component units:", str(room_obj.total_items))
     
     def _add_12nc_details(self, parent, nc12_obj):
         """Add 12NC-specific details
@@ -147,6 +147,6 @@ class DetailsPanel:
         Returns: None
         """
         self._add_detail_separator(parent)
-        self._add_detail_row(parent, "IGT:", nc12_obj.igt if nc12_obj.igt else "N/A")
-        self._add_detail_row(parent, "Deployed in Rooms:", str(len(nc12_obj.componenets)))
-        self._add_detail_row(parent, "Total Quantity:", str(nc12_obj.total_items))
+        self._add_detail_row(parent, "IGT #:", nc12_obj.igt if nc12_obj.igt else "N/A")
+        self._add_detail_row(parent, "# of Rooms Deployed in :", str(len(nc12_obj.componenets)))
+        self._add_detail_row(parent, "Overall Quantity:", str(nc12_obj.total_items))
