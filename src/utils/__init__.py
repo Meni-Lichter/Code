@@ -1,6 +1,6 @@
 """Utility functions for Room 12NC Performance Center"""
 
-from .config_util import load_config, save_config
+from .config_util import load_config, save_config, get_last_files, save_last_files
 from .date_utils import get_period_key, get_next_period_label
 from .excel_utils import pick_sheet, col_letter_to_index, find_column_by_canon
 from .file_utils import file_in_use, ensure_file_not_open, compute_output_path
@@ -11,6 +11,8 @@ __all__ = [
     # Config utilities
     'load_config',
     'save_config',
+    'get_last_files',
+    'save_last_files',
     # Date utilities
     'get_period_key',
     'get_next_period_label',

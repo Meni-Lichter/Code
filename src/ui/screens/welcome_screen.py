@@ -13,6 +13,7 @@ sys.path.insert(0, str(project_root))
 from src.infrastructure import load_cbom
 from src.infrastructure.data_transformer import transform_cbom_data
 from src.utils import load_config
+from src.utils.config_util import get_last_files, save_last_files
 
 
 class WelcomeScreen(ctk.CTkFrame):
@@ -43,6 +44,9 @@ class WelcomeScreen(ctk.CTkFrame):
         
         # Quick Actions Section
         self._create_quick_actions_section(main_container)
+        
+        # Auto-load last files if they exist
+        self.after(100, self._auto_load_last_files)
     
     def _create_title_section(self, parent):
         """Create welcome title"""
@@ -336,6 +340,9 @@ class WelcomeScreen(ctk.CTkFrame):
                 text_color="#10b981"
             )
             
+            # Save file paths for next session
+            save_last_files(self.loaded_files)
+            
         except Exception as e:
             self.status_label.configure(
                 text=f"❌ Error loading files: {str(e)}",
@@ -344,3 +351,43 @@ class WelcomeScreen(ctk.CTkFrame):
             print(f"Error loading files: {e}")
             import traceback
             traceback.print_exc()
+    
+    def _auto_load_last_files(self):
+        """Auto-load files from last session if they exist"""
+        try:
+            last_files = get_last_files()
+            
+            # Check if all files exist
+            all_exist = all(
+                last_files.get(key) and Path(last_files[key]).exists()
+                for key in ["cbom", "ymbd", "fit_cvi"]
+            )
+            
+            if all_exist:
+                # Set loaded files
+                for key in ["cbom", "ymbd", "fit_cvi"]:
+                    self.loaded_files[key] = last_files[key]
+                    path_var = getattr(self, f"{key}_path_var", None)
+                    if path_var:
+                        path_var.set(Path(last_files[key]).name)
+                
+                # Show loading message
+                self.status_label.configure(
+                    text="⏳ Auto-loading previous files...",
+                    text_color="#f59e0b"
+                )
+                self.update()
+                
+                # Automatically load and process the files
+                self.load_files()
+                
+                # Update success message to indicate auto-load
+                if "✓" in self.status_label.cget("text"):
+                    current_text = self.status_label.cget("text")
+                    self.status_label.configure(
+                        text=f"🔄 {current_text} (auto-loaded from previous session)",
+                        text_color="#10b981"
+                    )
+        except Exception as e:
+            # Silent fail - user can load manually
+            print(f"Could not auto-load last files: {e}")

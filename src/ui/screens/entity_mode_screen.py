@@ -4,6 +4,14 @@ import customtkinter as ctk
 import tkinter as tk
 from tkinter import Listbox
 
+# Import panel managers
+from src.ui.screens.panels import (
+    DetailsPanel,
+    BelongingPanel,
+    PerformancePanel,
+    PredictionPanel
+)
+
 
 class EntityModeScreen(ctk.CTkFrame):
     """Main analysis screen with 2x2 grid layout for 12NC and Room modes"""
@@ -65,7 +73,8 @@ class EntityModeScreen(ctk.CTkFrame):
         
         self.app_controller = app_controller
         self.current_mode = mode
-        self.selected_entity = None
+        self.selected_entity_12nc = None
+        self.selected_entity_room = None
         
         # Cache fonts to avoid recreating them repeatedly
         self._font_cache = {}
@@ -88,13 +97,16 @@ class EntityModeScreen(ctk.CTkFrame):
         self._create_title_header()
         self._create_search_area()
         self._create_grid_panels()
+        
+        # Initialize panel managers (after panels are created)
+        self._initialize_panel_managers()
     
     # ============================================================================
     # HELPER METHODS
     # ============================================================================
     
     def _get_font(self, family="Segoe UI", size=15, weight="normal"):
-        """
+        """Get or create a cached font
             Args:
                 family: The font family (default "Segoe UI")
                 size: The font size (default 15)
@@ -106,6 +118,40 @@ class EntityModeScreen(ctk.CTkFrame):
         if key not in self._font_cache:
             self._font_cache[key] = ctk.CTkFont(family=family, size=size, weight=weight)  # type: ignore
         return self._font_cache[key]
+    
+    def _initialize_panel_managers(self):
+        """Initialize panel manager instances
+            Args: None
+            Does: Creates panel manager objects for each panel
+            Returns: None
+        """
+        self.details_panel_manager = DetailsPanel(
+            self.details_panel,
+            self.COLORS,
+            self.FONT_SIZES,
+            self._get_font
+        )
+        
+        self.belonging_panel_manager = BelongingPanel(
+            self.belonging_panel,
+            self.COLORS,
+            self.FONT_SIZES,
+            self._get_font
+        )
+        
+        self.performance_panel_manager = PerformancePanel(
+            self.performance_panel,
+            self.COLORS,
+            self.FONT_SIZES,
+            self._get_font
+        )
+        
+        self.prediction_panel_manager = PredictionPanel(
+            self.prediction_panel,
+            self.COLORS,
+            self.FONT_SIZES,
+            self._get_font
+        )
     
     def _initialize_sample_data_from_controller(self):
         """Load sample data from app controller's loaded CBOM files
@@ -319,6 +365,9 @@ class EntityModeScreen(ctk.CTkFrame):
         self.search_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
         self.search_entry.bind("<FocusIn>", self._on_entry_focus)
         self.search_entry.bind("<FocusOut>", self._on_entry_blur)
+        self.search_entry.bind("<Return>", lambda e: self._on_search_button())
+        self.search_entry.bind("<Down>", self._on_entry_down_arrow)
+        self.search_entry.bind("<Escape>", lambda e: self._hide_dropdown())
         
         # Dropdown toggle button with arrow
         self.dropdown_toggle_btn = ctk.CTkButton(
@@ -375,6 +424,10 @@ class EntityModeScreen(ctk.CTkFrame):
         self.dropdown_listbox.pack(fill="both", expand=True, padx=5, pady=5)
         self.dropdown_listbox.bind("<<ListboxSelect>>", self._on_dropdown_select)
         self.dropdown_listbox.bind("<Button-1>", self._on_dropdown_select)
+        self.dropdown_listbox.bind("<Return>", self._on_dropdown_enter)
+        self.dropdown_listbox.bind("<Up>", self._on_dropdown_up)
+        self.dropdown_listbox.bind("<Down>", self._on_dropdown_down)
+        self.dropdown_listbox.bind("<Escape>", lambda e: (self._hide_dropdown(), self.search_entry.focus_set()))
         
         self.dropdown_visible = False
         
@@ -563,14 +616,13 @@ class EntityModeScreen(ctk.CTkFrame):
             Does: Switches the current mode to the new mode and updates relevant components
             Returns: None
         """
-        if new_mode == self.current_mode:
-            return
-            
         self.current_mode = new_mode
         self._update_data_for_mode()
         self._update_ui_for_mode()
         self._update_search_for_mode()
         self._update_navigation_for_mode()
+        # Try to restore panels for this mode's last entity
+        self._update_panels()
     
     def _update_data_for_mode(self):
         """Update data lists based on current mode
@@ -609,11 +661,8 @@ class EntityModeScreen(ctk.CTkFrame):
             Does: Switches to the selected mode
             Returns: None
         """
-        # Always update - don't skip even if same mode
-        self._update_data_for_mode()
-        self._update_ui_for_mode()
-        self._update_search_for_mode()
-        self._update_navigation_for_mode()
+        # Use centralized switching logic
+        self._switch_mode(self.current_mode)
     
     def _on_mode_toggle(self, value):
         """Handle mode toggle button click
@@ -623,13 +672,7 @@ class EntityModeScreen(ctk.CTkFrame):
             Returns: None
         """
         new_mode = "12nc" if value == "12NC" else "room"
-        # Only switch if different from current mode
-        if new_mode != self.current_mode:
-            self.current_mode = new_mode
-            self._update_data_for_mode()
-            self._update_ui_for_mode()
-            self._update_search_for_mode()
-            self._update_navigation_for_mode()
+        self._switch_mode(new_mode)
     
     # ============================================================================
     # SEARCH FUNCTIONALITY
@@ -754,7 +797,7 @@ class EntityModeScreen(ctk.CTkFrame):
                 if event.type == tk.EventType.ButtonPress:
                     self._hide_dropdown()
                     self.search_entry.focus()
-    
+
     def _show_dropdown(self):
         """Show the dropdown list
             Args: None
@@ -777,6 +820,78 @@ class EntityModeScreen(ctk.CTkFrame):
             self.dropdown_visible = False
             self.dropdown_toggle_btn.configure(text="▼")
 
+    def _on_entry_down_arrow(self, event):
+        """Handle down arrow in search entry
+            Args: event
+            Does: Opens dropdown and focuses on first item
+            Returns: None
+        """
+        if not self.dropdown_visible:
+            self._show_dropdown()
+        if self.dropdown_listbox.size() > 0:
+            self.dropdown_listbox.selection_clear(0, tk.END)
+            self.dropdown_listbox.selection_set(0)
+            self.dropdown_listbox.activate(0)
+            self.dropdown_listbox.focus_set()
+        return "break"
+    
+    def _on_dropdown_enter(self, event):
+        """Handle Enter key in dropdown
+            Args: event
+            Does: Selects item and moves focus to search box
+            Returns: None
+        """
+        selection = self.dropdown_listbox.curselection()
+        if selection:
+            selected = self.dropdown_listbox.get(selection[0])
+            if selected != "No matches found":
+                self.search_var.set(selected)
+                self._hide_dropdown()
+                self.search_entry.focus_set()
+        return "break"
+    
+    def _on_dropdown_up(self, event):
+        """Handle up arrow in dropdown
+            Args: event
+            Does: Navigates to previous item
+            Returns: None
+        """
+        current = self.dropdown_listbox.curselection()
+        if current:
+            if current[0] > 0:
+                new_index = current[0] - 1
+                self.dropdown_listbox.selection_clear(0, tk.END)
+                self.dropdown_listbox.selection_set(new_index)
+                self.dropdown_listbox.activate(new_index)
+                self.dropdown_listbox.see(new_index)
+        else:
+            # No selection, select last item
+            if self.dropdown_listbox.size() > 0:
+                self.dropdown_listbox.selection_set(self.dropdown_listbox.size() - 1)
+                self.dropdown_listbox.activate(self.dropdown_listbox.size() - 1)
+        return "break"
+    
+    def _on_dropdown_down(self, event):
+        """Handle down arrow in dropdown
+            Args: event
+            Does: Navigates to next item
+            Returns: None
+        """
+        current = self.dropdown_listbox.curselection()
+        if current:
+            if current[0] < self.dropdown_listbox.size() - 1:
+                new_index = current[0] + 1
+                self.dropdown_listbox.selection_clear(0, tk.END)
+                self.dropdown_listbox.selection_set(new_index)
+                self.dropdown_listbox.activate(new_index)
+                self.dropdown_listbox.see(new_index)
+        else:
+            # No selection, select first item
+            if self.dropdown_listbox.size() > 0:
+                self.dropdown_listbox.selection_set(0)
+                self.dropdown_listbox.activate(0)
+        return "break"
+
     def _on_search_button(self):
         """Handle search button click
             Args: None
@@ -786,7 +901,11 @@ class EntityModeScreen(ctk.CTkFrame):
         search_term = self.search_var.get().strip()
         if search_term and search_term != "No matches found":
             print(f"Searching for {self.current_mode}: {search_term}")
-            self.selected_entity = search_term
+            # Save to mode-specific variable
+            if self.current_mode == "12nc":
+                self.selected_entity_12nc = search_term
+            else:
+                self.selected_entity_room = search_term
             self._update_panels()
             self._hide_dropdown()
         else:
@@ -798,7 +917,93 @@ class EntityModeScreen(ctk.CTkFrame):
             Does: Updates the content of all panels based on the currently selected entity
             Returns: None
         """
-        print(f"Updating panels for entity: {self.selected_entity}")
+        # Get selected entity for current mode
+        selected_entity = self.selected_entity_12nc if self.current_mode == "12nc" else self.selected_entity_room
+        
+        if not selected_entity:
+            return
+        
+        # Get the entity object from current_data
+        entity_obj = self._get_entity_object(selected_entity)
+        
+        if entity_obj:
+            # Update each panel with entity data
+            self._update_details_panel(entity_obj)
+            self._update_belonging_panel(entity_obj)
+            self._update_performance_panel(entity_obj)
+            self._update_prediction_panel(entity_obj)
+        else:
+            print(f"Entity not found: {selected_entity}")
+    
+    def _get_entity_object(self, entity_id):
+        """Get the entity object from current_data
+            Args:
+                entity_id: The ID of the entity to retrieve
+            Does: Retrieves the Room or TwelveNC object from app_controller's current_data
+            Returns: The entity object if found, None otherwise
+        """
+        if not hasattr(self.app_controller, 'current_data') or not self.app_controller.current_data:
+            return None
+        
+        current_data = self.app_controller.current_data
+        
+        # Search in the appropriate list based on current mode
+        if self.current_mode == "room":
+            if 'rooms' in current_data:
+                for room in current_data['rooms']:
+                    if room.id == entity_id:
+                        return room
+        else:  # 12nc mode
+            if 'nc12s' in current_data:
+                for nc12 in current_data['nc12s']:
+                    if nc12.id == entity_id:
+                        return nc12
+        
+        return None
+    
+    # ============================================================================
+    # PANEL UPDATE METHODS
+    # ============================================================================
+    
+    def _update_details_panel(self, entity_obj):
+        """Update details panel with entity information
+            Args:
+                entity_obj: Room or TwelveNC object
+            Does: Delegates to DetailsPanel manager
+            Returns: None
+        """
+        self.details_panel_manager.update(entity_obj, self.current_mode)
+    
+    def _update_belonging_panel(self, entity_obj):
+        """Update belonging list panel with related entities
+            Args:
+                entity_obj: Room or TwelveNC object
+            Does: Delegates to BelongingPanel manager
+            Returns: None
+        """
+        self.belonging_panel_manager.update(entity_obj, self.current_mode)
+    
+    def _update_performance_panel(self, entity_obj):
+        """Update performance panel with sales data
+            Args:
+                entity_obj: Room or TwelveNC object
+            Does: Delegates to PerformancePanel manager
+            Returns: None
+        """
+        self.performance_panel_manager.update(entity_obj, self.current_mode)
+    
+    def _update_prediction_panel(self, entity_obj):
+        """Update prediction panel with forecast data
+            Args:
+                entity_obj: Room or TwelveNC object
+            Does: Delegates to PredictionPanel manager  
+            Returns: None
+        """
+        self.prediction_panel_manager.update(entity_obj, self.current_mode)
+    
+    # ============================================================================
+    # EXPORT & UTILITY METHODS
+    # ============================================================================
     
     def _export_panel(self, panel_title, format_type):
         """Export panel data to Excel or PNG

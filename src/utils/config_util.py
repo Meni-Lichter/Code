@@ -73,3 +73,30 @@ def save_config(
     # Save with pretty formatting
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
+
+
+def get_last_files(config_path: Union[str, Path] = "config/config.json") -> Dict[str, str]:
+    """Get last used file paths from config
+    
+    Args:
+        config_path: Path to configuration file
+        
+    Returns:
+        Dictionary with last file paths (cbom, ymbd, fit_cvi)
+    """
+    config = load_config(config_path)
+    return config.get("last_files", {"cbom": "", "ymbd": "", "fit_cvi": ""})
+
+
+def save_last_files(
+    file_paths: Dict[str, str], config_path: Union[str, Path] = "config/config.json"
+) -> None:
+    """Save last used file paths to config
+    
+    Args:
+        file_paths: Dictionary with file paths (cbom, ymbd, fit_cvi)
+        config_path: Path to configuration file
+    """
+    config = load_config(config_path)
+    config["last_files"] = file_paths
+    save_config(config, config_path)
