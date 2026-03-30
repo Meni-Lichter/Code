@@ -59,7 +59,10 @@ class DetailsPanel:
         
         # Sales history summary
         self._add_detail_separator(details_container)
-        self._add_detail_row(details_container, "Sales Records:", str(len(entity_obj.sales_history)))
+        sales_count = len(entity_obj.sales_history)
+        total_quantity = sum(record.quantity for record in entity_obj.sales_history) if entity_obj.sales_history else 0
+        self._add_detail_row(details_container, "Sales Records:", str(sales_count))
+        self._add_detail_row(details_container, "Total Sold Quantity:", str(total_quantity))
     
     def _find_content_frame(self):
         """Find the content frame within the panel widget
