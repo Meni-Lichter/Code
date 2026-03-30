@@ -1010,6 +1010,8 @@ class EntityModeScreen(ctk.CTkFrame):
         
         # Update search box to reflect navigation
         self.search_var.set(entity_id)
+        # hide dropdown if navigating from a click
+        self._hide_dropdown()
         
         # Update all panels with the new entity
         self._update_panels()
