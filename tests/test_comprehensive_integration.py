@@ -28,6 +28,9 @@ from src.analysis.predictor import Predictor
 # Import infrastructure (functions not classes)
 from src.infrastructure import data_loaders, data_transformer
 
+# Import performance metrics
+from tests.test_performance_metrics import time_test, measure_operation
+
 # Import UI panels
 from src.ui.screens.panels.performance_panel import PerformancePanel
 from src.ui.screens.panels.belonging_panel import BelongingPanel

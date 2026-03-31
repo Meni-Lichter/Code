@@ -21,6 +21,9 @@ from src.models.mapping import Room, TwelveNC
 from src.models.sales_record import SalesRecord
 from src.utils.config_util import load_config
 
+# Import performance metrics
+from tests.test_performance_metrics import time_test, measure_operation
+
 
 # ============================================================================
 # TEST CONFIGURATION

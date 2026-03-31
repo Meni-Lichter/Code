@@ -21,6 +21,9 @@ from src.ui.screens.entity_mode_screen import EntityModeScreen
 from src.ui.screens.welcome_screen import WelcomeScreen
 from src.models.mapping import Room, TwelveNC
 
+# Import performance metrics
+from tests.test_performance_metrics import time_test, measure_operation
+
 
 # ============================================================================
 # FIXTURES
@@ -74,34 +77,40 @@ def app_with_data():
 class TestScreenNavigation:
     """Test suite for screen navigation and routing"""
     
+    @time_test
     def test_navigate_to_welcome(self, app_with_data):
         """Test navigation to welcome screen"""
         app = app_with_data
         
-        app.show_screen("welcome")
-        app.update()
+        with measure_operation("Navigate to welcome screen"):
+            app.show_screen("welcome")
+            app.update()
         
         assert app.current_screen is not None
         assert isinstance(app.current_screen, WelcomeScreen)
         assert "welcome" in app.screens
     
+    @time_test
     def test_navigate_to_12nc_mode(self, app_with_data):
         """Test navigation to 12NC mode"""
         app = app_with_data
         
-        app.show_screen("12nc_mode")
-        app.update()
+        with measure_operation("Navigate to 12NC mode"):
+            app.show_screen("12nc_mode")
+            app.update()
         
         assert app.current_screen is not None
         assert isinstance(app.current_screen, EntityModeScreen)
         assert app.current_screen.current_mode == "12nc"
     
+    @time_test
     def test_navigate_to_room_mode(self, app_with_data):
         """Test navigation to Room mode"""
         app = app_with_data
         
-        app.show_screen("room_mode")
-        app.update()
+        with measure_operation("Navigate to Room mode"):
+            app.show_screen("room_mode")
+            app.update()
         
         assert app.current_screen is not None
         assert isinstance(app.current_screen, EntityModeScreen)
@@ -197,23 +206,27 @@ class TestScreenCaching:
 class TestEntityModeHandling:
     """Test suite for entity mode screen specific navigation"""
     
+    @time_test
     def test_switch_between_entity_modes(self, app_with_data):
         """Test switching between 12NC and Room modes"""
         app = app_with_data
         
         # Start with 12NC
-        app.show_screen("12nc_mode")
-        app.update()
+        with measure_operation("Initial 12NC mode load"):
+            app.show_screen("12nc_mode")
+            app.update()
         assert app.current_screen.current_mode == "12nc"
         
         # Switch to Room
-        app.show_screen("room_mode")
-        app.update()
+        with measure_operation("Switch 12NC -> Room"):
+            app.show_screen("room_mode")
+            app.update()
         assert app.current_screen.current_mode == "room"
         
         # Switch back to 12NC
-        app.show_screen("12nc_mode")
-        app.update()
+        with measure_operation("Switch Room -> 12NC"):
+            app.show_screen("12nc_mode")
+            app.update()
         assert app.current_screen.current_mode == "12nc"
     
     def test_entity_mode_screen_created_once(self, app_with_data):

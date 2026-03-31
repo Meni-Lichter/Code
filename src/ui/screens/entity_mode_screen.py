@@ -403,7 +403,6 @@ class EntityModeScreen(ctk.CTkFrame):
             height=48
         )
         search_btn.grid(row=0, column=2, sticky="e")
-        self._create_tooltip(search_btn, f"Search for {self.MODE_CONFIG[self.current_mode]['display']}")
         
         # Dropdown list (initially hidden)
         self.dropdown_frame = ctk.CTkFrame(

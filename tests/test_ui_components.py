@@ -23,6 +23,9 @@ from src.ui.screens.welcome_screen import WelcomeScreen
 from src.ui.components.side_menu import SideMenu
 from src.models.mapping import Room, TwelveNC
 
+# Import performance metrics
+from tests.test_performance_metrics import time_test, measure_operation
+
 
 # ============================================================================
 # FIXTURES
