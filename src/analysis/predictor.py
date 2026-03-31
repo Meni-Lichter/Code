@@ -69,10 +69,11 @@ class Predictor:
         today = date.today()
 
         try:
-            if granularity == "daily" or granularity == "monthly":
-                # Format: MM-DD-YYYY
-                target_date = datetime.strptime(target_time, "%m-%d-%Y").date()
-                if target_date < today:
+            if granularity == "monthly":
+                # Format: MM-YYYY
+                target_date = datetime.strptime(target_time, "%m-%Y").date()
+                # Check if it's a future month
+                if target_date.year < today.year or (target_date.year == today.year and target_date.month <= today.month):
                     raise ValueError("Target time must be in the future")
             elif granularity == "quarterly":
                 # Format: YYYY-QN (e.g., "2026-Q2")
@@ -139,16 +140,9 @@ class Predictor:
                 if matching_quarters
                 else self.performance_data.average
             )
-        else:  # granularity == "daily"
-            # for daily, average the target day from previous n years
-            recent = self.performance_data.periods
-            target_day = target_time[:5]  # Extract day from MM-DD-YYYY format
-            matching_days = [float(p.quantity) for p in recent if p.label[:5] == target_day]
-            return (
-                sum(matching_days) / len(matching_days)
-                if matching_days
-                else self.performance_data.average
-            )
+        
+        # Default fallback
+        return self.performance_data.average
 
     def _predict_avg_last_n_periods(
         self, n_periods: int = 11, granularity: str = "monthly"
@@ -168,7 +162,7 @@ class Predictor:
         if (
             len(self.performance_data.periods) == 0
             or n_periods <= 0
-            or granularity not in ["yearly", "quarterly", "monthly", "daily"]
+            or granularity not in ["yearly", "quarterly", "monthly"]
         ):
             return 0.0
 
@@ -186,14 +180,7 @@ class Predictor:
                 if recent
                 else self.performance_data.average
             )
-        elif granularity == "quarterly":
-            recent = self.performance_data.periods[-n_periods:]
-            return (
-                sum(p.quantity for p in recent) / len(recent)
-                if recent
-                else self.performance_data.average
-            )
-        else:  # daily
+        else:  # quarterly
             recent = self.performance_data.periods[-n_periods:]
             return (
                 sum(p.quantity for p in recent) / len(recent)

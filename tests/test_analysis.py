@@ -447,9 +447,6 @@ class TestAnalysis:
                                 return (int(year), int(month))
                             elif len(label) == 4 and label.isdigit():  # Yearly: YYYY
                                 return (int(label), 0)
-                            elif len(label) == 10 and label.count("-") == 2:  # Daily: MM-DD-YYYY
-                                parts = label.split("-")
-                                return (int(parts[2]), int(parts[0]), int(parts[1]))
                             else:
                                 return (0, 0)
                         except:
@@ -877,7 +874,7 @@ class TestPrediction:
             pytest.skip("No 12NC with sales data found")
 
         analyzer = PerformanceAnalyzer()
-        granularities = ["monthly", "quarterly", "yearly", "daily"]
+        granularities = ["monthly", "quarterly", "yearly"]
         results = {}
 
         print(f"\nGranularity Prediction Test (12NC: {target_nc.id}):")

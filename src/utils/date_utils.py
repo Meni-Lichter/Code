@@ -8,13 +8,11 @@ def get_period_key(dt: date, granularity: str) -> str:
     """Generate period key based on granularity using date format format from config
     input:
         - dt: date object
-        - granularity: "daily", "monthly", "quarterly", "yearly"
+        - granularity: "monthly", "quarterly", "yearly"
     output:
         - String representing the period key in MM-DD-YYYY compatible format
     """
-    if granularity == "daily":
-        return dt.strftime("%m-%d-%Y")  # MM-DD-YYYY
-    elif granularity == "monthly":
+    if granularity == "monthly":
         return f"{dt.month:02d}-{dt.year}"  # MM-YYYY
     elif granularity == "quarterly":
         quarter = (dt.month - 1) // 3 + 1
@@ -46,12 +44,8 @@ def get_next_period_label(granularity: str) -> str:
         if next_month > 12:
             next_month = 1
             next_year += 1
-        # Return MM-DD-YYYY format (first of month)
-        return f"{next_month:02d}-01-{next_year}"  # "03-01-2025"
-    elif granularity == "daily":
-        next_day = now + timedelta(days=1)
-        # Format: MM-DD-YYYY
-        return next_day.strftime("%m-%d-%Y")  # "02-24-2025"
+        # Return MM-YYYY format
+        return f"{next_month:02d}-{next_year}"
     else:
         return str(now.year + 1)
 
@@ -60,10 +54,10 @@ def match_granularity(target_time: str, granularity: str) -> str:
     """
     Adjust target_time to match the granularity of historical performance data.
 
-    If target is more specific than data (e.g., daily target but monthly data),
+    If target is more specific than data (e.g., monthly target but quarterly data),
     convert target to data's granularity and notify user.
 
-    If target is less specific than data (e.g., monthly target but daily data),
+    If target is less specific than data (e.g., quarterly target but monthly data),
     keep target as-is (aggregation will happen during prediction).
 
     Args:
@@ -84,7 +78,7 @@ def match_granularity(target_time: str, granularity: str) -> str:
         return target_time
 
     # Define granularity hierarchy (least to most specific)
-    granularity_order = {"yearly": 1, "quarterly": 2, "monthly": 3, "daily": 4}
+    granularity_order = {"yearly": 1, "quarterly": 2, "monthly": 3}
 
     target_level = granularity_order.get(label_granularity, 0)
     data_level = granularity_order.get(granularity, 0)
@@ -98,10 +92,7 @@ def match_granularity(target_time: str, granularity: str) -> str:
 
         try:
             # Parse based on label granularity using MM-DD-YYYY format
-            if label_granularity == "daily":
-                # Parse MM-DD-YYYY format
-                date_obj = datetime.strptime(target_time, "%m-%d-%Y")
-            elif label_granularity == "monthly":
+            if label_granularity == "monthly":
                 # Parse MM-YYYY format
                 date_obj = datetime.strptime(target_time, "%m-%Y")
             elif label_granularity == "quarterly":
@@ -124,9 +115,6 @@ def match_granularity(target_time: str, granularity: str) -> str:
             elif granularity == "monthly":
                 # Return in MM-YYYY format
                 return f"{date_obj.month:02d}-{date_obj.year}"
-            elif granularity == "daily":
-                # Return in MM-DD-YYYY format
-                return date_obj.strftime("%m-%d-%Y")
             else:
                 # Unknown granularity, return as-is
                 return target_time
@@ -153,12 +141,10 @@ def get_granularity_from_label(label: str, date_format: str) -> str:
         date_format: Date format from config (e.g., 'MM-DD-YYYY')
 
     Returns:
-        Granularity string: 'yearly', 'quarterly', 'monthly', or 'daily'
+        Granularity string: 'yearly', 'quarterly', 'monthly'
     """
     if "-Q" in label:
         return "quarterly"
-    elif len(label) == 10 and label.count("-") == 2:  # MM-DD-YYYY (e.g., 02-24-2025)
-        return "daily"
     elif len(label) == 7 and label[2] == "-":  # MM-YYYY (e.g., 02-2025)
         return "monthly"
     elif len(label) == 4 and label.isdigit():  # YYYY
@@ -178,8 +164,6 @@ def _infer_granularity(self) -> str:
         return "quarterly"
     elif len(label) == 4 and label.isdigit():
         return "yearly"
-    elif len(label) == 10 and label.count("-") == 2:  # MM-DD-YYYY
-        return "daily"
     elif len(label) == 7 and label[2] == "-":  # MM-YYYY
         return "monthly"
     else:

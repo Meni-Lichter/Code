@@ -35,7 +35,7 @@ class PerformanceCenter:
         Args:
             analyzed_obj: Room or TwelveNC object
             lookback_years: Number of years of history to analyze
-            granularity: Time granularity ("daily", "monthly", "quarterly", "yearly")
+            granularity: Time granularity ("monthly", "quarterly", "yearly")
 
         Returns:
             PerformanceData object with historical performance

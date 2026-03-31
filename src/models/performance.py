@@ -20,7 +20,7 @@ class PerformanceData:
 
     g_entity: G_entity  # Room or TwelveNC
     periods: List[TimePeriod]
-    granularity: str  # "daily", "monthly", "quarterly", "yearly"
+    granularity: str  # "monthly", "quarterly", "yearly"
     total: int
     average: float
 
