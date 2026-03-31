@@ -53,6 +53,7 @@ class PerformancePanel:
             2025: "#4A90E2",  # Blue
             2024: "#50C878",  # Green
             2023: "#9E9E9E",  # Grey
+            2022: "#9C27B0",  # Purple
         }
         
         # UI components
@@ -124,18 +125,18 @@ class PerformancePanel:
         return None
     
     def _get_available_years(self) -> List[int]:
-        """Get list of years present in sales data, limited to last 3 years from most recent
+        """Get list of years present in sales data, limited to last 4 years from most recent
         Args: None
         Does: Extracts the years from the sales history of the current entity object.
-        Returns: A list of up to 3 most recent years.
+        Returns: A list of up to 4 most recent years.
         """
         if not self.entity_obj or not self.entity_obj.sales_history:
             return []
         
         years = set(record.date.year for record in self.entity_obj.sales_history)
         sorted_years = sorted(years, reverse=True)
-        # Return up to 3 most recent years
-        return sorted_years[:3]
+        # Return up to 4 most recent years
+        return sorted_years[:4]
     
     def _build_ui(self):
         """Build the complete UI with controls and chart
@@ -335,12 +336,6 @@ class PerformancePanel:
         # Create canvas
         self.canvas = FigureCanvasTkAgg(self.figure, parent)
         self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=15, pady=15)
-        
-        # Connect hover event for tooltips
-        self.canvas.mpl_connect('motion_notify_event', self._on_hover)
-        
-        # Store tooltip annotation (initially invisible)
-        self.tooltip = None
     
     def _get_max_periods(self) -> int:
         """Get maximum number of periods based on granularity"""
@@ -359,6 +354,7 @@ class PerformancePanel:
               then groups results by year for display.
         Returns:
             Dictionary: {year: {period_label: quantity}}
+            For example: {2024: {"Jan": 100, "Feb": 150}, 2023: {"Jan": 80, "Feb": 120}}
         """
         if not self.entity_obj or not self.entity_obj.sales_history:
             return {}
@@ -367,10 +363,14 @@ class PerformancePanel:
         analyzer_granularity = self.granularity_map.get(self.granularity, "monthly")
         
         try:
-            # Analyze using PerformanceAnalyzer for the last 3 years
+            # Wrap entity_obj in G_entity for analyzer
+            entity_type = "12NC" if self.mode == "12nc" else "room"
+            g_entity_obj = G_entity(g_entity=self.entity_obj, entity_type=entity_type)
+            
+            # Analyze using PerformanceAnalyzer for the last 4 years
             performance_data: PerformanceData = self.analyzer.analyze(
-                analyzed_obj=self.entity_obj,
-                lookback_years=3,
+                analyzed_obj=g_entity_obj,
+                lookback_years=4,
                 granularity=analyzer_granularity
             )
             
@@ -463,7 +463,12 @@ class PerformancePanel:
         return []
     
     def _update_chart(self):
-        """Update the bar chart with current settings"""
+        """Update the bar chart with current setting
+        Args: None
+        Does: Clears the existing chart and redraws it based on the current selected years, time range, and granularity.
+              It uses the aggregated sales data to plot bars for each period and year.
+        Returns: None
+        """
         if not self.ax:
             return
         
@@ -493,45 +498,69 @@ class PerformancePanel:
         
         # Prepare data for plotting
         x_positions = list(range(len(filtered_periods)))
-        bar_width = 0.8 / max(len(self.selected_years), 1)
         
-        # Plot bars for each selected year
-        bars_metadata = []  # Store bar metadata for tooltips
-        
-        for i, year in enumerate(sorted(self.selected_years)):
-            if year not in data:
-                continue
+        # For yearly granularity, show single bars (periods ARE years)
+        if self.granularity == "Years":
+            values = []
+            colors = []
+            for period in filtered_periods:
+                # Get the year value from data
+                try:
+                    year = int(period)
+                    if year in data and period in data[year]:
+                        values.append(data[year][period])
+                        colors.append(self.year_colors.get(year, "#666666"))
+                    else:
+                        values.append(0)
+                        colors.append("#CCCCCC")
+                except ValueError:
+                    values.append(0)
+                    colors.append("#CCCCCC")
             
-            year_data = data[year]
-            values = [year_data.get(period, 0) for period in filtered_periods]
-            
-            # Calculate x offset for grouped bars
-            offset = (i - len(self.selected_years) / 2 + 0.5) * bar_width
-            x_positions_offset = [x + offset for x in x_positions]
-            
-            color = self.year_colors.get(year, "#666666")
             bars = self.ax.bar(
-                x_positions_offset,
+                x_positions,
                 values,
-                width=bar_width,
-                label=str(year),
-                color=color,
+                width=0.6,
+                color=colors,
                 alpha=0.9,
                 edgecolor='white',
                 linewidth=1
             )
             
-            # Store metadata for each bar
-            for bar, period, value in zip(bars, filtered_periods, values):
-                bars_metadata.append({
-                    'bar': bar,
-                    'year': year,
-                    'period': period,
-                    'value': value
-                })
-        
-        self.bars_metadata = bars_metadata
-        
+            # Add value labels on top of bars
+            self.add_bar_values(bars, values)
+
+        else:
+            # For monthly/quarterly: group bars by year
+            bar_width = 0.8 / max(len(self.selected_years), 1)
+            
+            # Plot bars for each selected year
+            for i, year in enumerate(sorted(self.selected_years)):
+                if year not in data:
+                    continue
+                
+                year_data = data[year]
+                values = [year_data.get(period, 0) for period in filtered_periods]
+                
+                # Calculate x offset for grouped bars
+                offset = (i - len(self.selected_years) / 2 + 0.5) * bar_width
+                x_positions_offset = [x + offset for x in x_positions]
+                
+                color = self.year_colors.get(year, "#666666")
+                bars = self.ax.bar(
+                    x_positions_offset,
+                    values,
+                    width=bar_width,
+                    label=str(year),
+                    color=color,
+                    alpha=0.9,
+                    edgecolor='white',
+                    linewidth=1
+                )
+                
+                # Add value labels on top of bars
+                self.add_bar_values(bars, values)
+
         # Customize chart
         self.ax.set_xlabel('Time Period', fontsize=11, fontweight='bold', color='#333333')
         self.ax.set_ylabel('Sales Quantity', fontsize=11, fontweight='bold', color='#333333')
@@ -546,8 +575,8 @@ class PerformancePanel:
         self.ax.grid(True, axis='y', alpha=0.3, linestyle='--', linewidth=0.5)
         self.ax.set_axisbelow(True)
         
-        # Legend
-        if self.selected_years:
+        # Legend (only for monthly/quarterly where we have grouped bars by year)
+        if self.selected_years and self.granularity != "Years":
             self.ax.legend(loc='upper right', framealpha=0.9, edgecolor='#CCCCCC')
         
         # Tight layout
@@ -561,9 +590,11 @@ class PerformancePanel:
     
     def _on_granularity_change(self, new_granularity: str):
         """Handle granularity dropdown change
-        
         Args:
             new_granularity: New granularity value
+        Does: Updates the granularity state, resets the time range to match the new granularity, 
+        updates the range sliders, and refreshes the chart.
+        Returns: None
         """
         self.granularity = new_granularity
         
@@ -590,9 +621,10 @@ class PerformancePanel:
     
     def _on_year_toggle(self, year: int):
         """Handle year checkbox toggle
-        
         Args:
             year: Year that was toggled
+        Does: Adds or removes the year from the selected_years set based on the checkbox state, then updates the chart.
+        Returns: None
         """
         if year in self.selected_years:
             self.selected_years.remove(year)
@@ -604,10 +636,12 @@ class PerformancePanel:
     
     def _on_range_change(self, value):
         """Handle range slider change
-        
         Args:
             value: Slider value (not used, we read directly from sliders)
+        Does: Updates the time range based on the slider values, ensures start <= end, updates labels, and refreshes the chart.
+        Returns: None
         """
+        # Validate sliders exist
         if not self.range_slider_start or not self.range_slider_end:
             return
             
@@ -636,63 +670,29 @@ class PerformancePanel:
         
         # Update chart
         self._update_chart()
-    
-    def _on_hover(self, event):
-        """Handle mouse hover for tooltip display
-        
+
+    def add_bar_values(self, bars, values):
+        """Add value labels on top of bars in the chart
         Args:
-            event: Matplotlib mouse event
+            bars: The bar containers returned by ax.bar()
+            values: The corresponding values for each bar
+        Does: Iterates through the bars and adds a text label on top of each bar that has a value greater than 0.
+        Returns: None
         """
-        if event.inaxes != self.ax or not self.canvas:
-            # Hide tooltip if mouse leaves axes
-            if self.tooltip and self.canvas:
-                self.tooltip.set_visible(False)
-                self.canvas.draw_idle()
+        # Validate inputs
+        if not bars or not values:
             return
         
-        # Check if mouse is over any bar
-        bar_found = False
-        
-        if hasattr(self, 'bars_metadata'):
-            for metadata in self.bars_metadata:
-                bar = metadata['bar']
-                contains, _ = bar.contains(event)
-                
-                if contains:
-                    # Show tooltip
-                    bar_found = True
-                    year = metadata['year']
-                    period = metadata['period']
-                    value = metadata['value']
-                    
-                    # Create or update tooltip
-                    tooltip_text = f"{period} {year}\nQuantity: {value}"
-                    
-                    if not self.tooltip and self.ax:
-                        self.tooltip = self.ax.annotate(
-                            tooltip_text,
-                            xy=(0, 0),
-                            xytext=(10, 10),
-                            textcoords='offset points',
-                            bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.9, edgecolor='#666666'),
-                            fontsize=9,
-                            fontweight='bold'
-                        )
-                    else:
-                        if self.tooltip:
-                            self.tooltip.set_text(tooltip_text)
-                            self.tooltip.set_visible(True)
-                    
-                    # Position tooltip at bar center
-                    x = bar.get_x() + bar.get_width() / 2
-                    y = bar.get_height()
-                    if self.tooltip:
-                      self.tooltip.xy = (x, y)
-                    
-                    self.canvas.draw_idle()
-                    break
-        
-        # Hide tooltip if no bar found
-        if not bar_found and self.tooltip:
-            self.tooltip.set_visible(False)
-            self.canvas.draw_idle()
+        for bar, value in zip(bars, values):
+            if value > 0:
+                height = bar.get_height()
+                self.ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    height,
+                    f'{int(value)}',
+                    ha='center',
+                    va='bottom',
+                    fontsize=8,
+                    fontweight='bold',
+                    color='#333333'
+                )
