@@ -2,6 +2,15 @@
 
 import customtkinter as ctk
 from typing import Callable, Optional
+from tkinter import messagebox
+from pathlib import Path
+from datetime import datetime
+try:
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    HAS_OPENPYXL = True
+except ImportError:
+    HAS_OPENPYXL = False
 
 
 class BelongingPanel:
@@ -273,3 +282,108 @@ class BelongingPanel:
             self.navigate_callback(entity_id, target_mode)
         else:
             print(f"Navigation to {entity_id} in {target_mode} mode (no callback set)")
+    
+    def export_to_excel(self, entity, export_folder, mode):
+        """Export belonging panel data to Excel
+        
+        Args:
+            entity: The entity object to export
+            export_folder: Path to export folder
+            mode: Current mode ("12nc" or "room")
+        """
+        if not HAS_OPENPYXL:
+            messagebox.showerror("Export Failed", "openpyxl is required for Excel export")
+            return
+        
+        if not entity.components:
+            messagebox.showwarning("No Data", "No related entities to export.")
+            return
+        
+        # Create workbook
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        if ws is None:
+            messagebox.showerror("Export Failed", "Failed to create Excel worksheet")
+            return
+        ws.title = "Belonging List"
+        
+        # Styles
+        header_fill = PatternFill(start_color="4A8F93", end_color="4A8F93", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        title_font = Font(bold=True, size=14)
+        
+        # Title
+        entity_id = entity.id
+        safe_entity_id = entity_id.replace('/', '_').replace('\\', '_')
+        
+        if mode == "room":
+            title_text = f"Components in Room {entity_id}"
+            entity_header = "12NC ID"
+        else:  # 12nc
+            title_text = f"Rooms containing 12NC {entity_id}"
+            entity_header = "Room ID"
+        
+        ws['A1'] = title_text
+        ws['A1'].font = title_font
+        ws.merge_cells('A1:C1')
+        
+        # Headers
+        row = 3
+        ws[f'A{row}'] = entity_header
+        ws[f'B{row}'] = "Description"
+        ws[f'C{row}'] = "Quantity"
+        
+        for col in ['A', 'B', 'C']:
+            ws[f'{col}{row}'].font = header_font
+            ws[f'{col}{row}'].fill = header_fill
+            ws[f'{col}{row}'].alignment = Alignment(horizontal='center')
+        
+        # Sort components by quantity (descending)
+        sorted_components = sorted(entity.components.items(), key=lambda x: x[1], reverse=True)
+        
+        # Data rows
+        row += 1
+        total_quantity = 0
+        for related_id, quantity in sorted_components:
+            ws[f'A{row}'] = related_id
+            
+            # Get description if callback is available
+            description = ""
+            if self.get_description_callback:
+                target_mode = "12nc" if mode == "room" else "room"
+                description = self.get_description_callback(related_id, target_mode) or ""
+            ws[f'B{row}'] = description
+            
+            ws[f'C{row}'] = quantity
+            ws[f'C{row}'].alignment = Alignment(horizontal='right')
+            total_quantity += quantity
+            row += 1
+        
+        # Total row
+        row += 1
+        ws[f'A{row}'] = "Total:"
+        ws[f'A{row}'].font = Font(bold=True)
+        ws[f'C{row}'] = total_quantity
+        ws[f'C{row}'].font = Font(bold=True)
+        ws[f'C{row}'].alignment = Alignment(horizontal='right')
+        
+        # Summary
+        row += 2
+        ws[f'A{row}'] = f"Total {entity_header}s: {len(sorted_components)}"
+        ws[f'A{row}'].font = Font(italic=True)
+        
+        # Adjust column widths
+        ws.column_dimensions['A'].width = 20
+        ws.column_dimensions['B'].width = 50
+        ws.column_dimensions['C'].width = 15
+        
+        # Save file
+        timestamp = datetime.now().strftime("%H-%M-%S")
+        filename = f"belonging_{safe_entity_id}_{timestamp}.xlsx"
+        file_path = export_folder / filename
+        
+        try:
+            wb.save(file_path)
+            messagebox.showinfo("Export Successful", f"Belonging list exported to:\n{file_path}")
+        except Exception as e:
+            messagebox.showerror("Export Failed", f"Error saving file:\n{str(e)}")

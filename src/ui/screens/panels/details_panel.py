@@ -1,6 +1,15 @@
 """Details Panel - Shows entity metadata and information"""
 
 import customtkinter as ctk
+from tkinter import messagebox
+from pathlib import Path
+from datetime import datetime
+try:
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    HAS_OPENPYXL = True
+except ImportError:
+    HAS_OPENPYXL = False
 
 
 class DetailsPanel:
@@ -155,3 +164,119 @@ class DetailsPanel:
         self._add_detail_row(parent, "IGT #:", nc12_obj.igt if nc12_obj.igt else "N/A")
         self._add_detail_row(parent, "# of Rooms Deployed in :", str(len(nc12_obj.components)))
         self._add_detail_row(parent, "Overall Quantity:", str(nc12_obj.total_items))
+    
+    def export_to_excel(self, entity, export_folder, mode):
+        """Export details panel data to Excel
+        
+        Args:
+            entity: The entity object to export
+            export_folder: Path to export folder
+            mode: Current mode ("12nc" or "room")
+        """
+        if not HAS_OPENPYXL:
+            messagebox.showerror("Export Failed", "openpyxl is required for Excel export")
+            return
+        
+        # Create workbook
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        if ws is None:
+            messagebox.showerror("Export Failed", "Failed to create Excel worksheet")
+            return
+        ws.title = "Details"
+        
+        # Styles
+        header_fill = PatternFill(start_color="4A8F93", end_color="4A8F93", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        label_font = Font(bold=True, size=11)
+        
+        # Title
+        entity_id = entity.id
+        safe_entity_id = entity_id.replace('/', '_').replace('\\', '_')
+        mode_text = "12NC" if mode == "12nc" else "Room"
+        ws['A1'] = f"{mode_text} Details - {entity_id}"
+        ws['A1'].font = Font(bold=True, size=14)
+        ws.merge_cells('A1:B1')
+        
+        # Basic Info
+        row = 3
+        ws[f'A{row}'] = "Basic Information"
+        ws[f'A{row}'].font = header_font
+        ws[f'A{row}'].fill = header_fill
+        ws.merge_cells(f'A{row}:B{row}')
+        
+        row += 1
+        ws[f'A{row}'] = "ID:"
+        ws[f'A{row}'].font = label_font
+        ws[f'B{row}'] = entity.id
+        
+        row += 1
+        ws[f'A{row}'] = "Description:"
+        ws[f'A{row}'].font = label_font
+        ws[f'B{row}'] = entity.description
+        
+        # Mode-specific details
+        row += 2
+        ws[f'A{row}'] = f"{mode_text} Specific Details"
+        ws[f'A{row}'].font = header_font
+        ws[f'A{row}'].fill = header_fill
+        ws.merge_cells(f'A{row}:B{row}')
+        
+        row += 1
+        if mode == "room":
+            ws[f'A{row}'] = "Total Components:"
+            ws[f'A{row}'].font = label_font
+            ws[f'B{row}'] = len(entity.components)
+            
+            row += 1
+            ws[f'A{row}'] = "Overall Component units:"
+            ws[f'A{row}'].font = label_font
+            ws[f'B{row}'] = entity.total_items
+        else:  # 12nc
+            ws[f'A{row}'] = "IGT #:"
+            ws[f'A{row}'].font = label_font
+            ws[f'B{row}'] = entity.igt if entity.igt else "N/A"
+            
+            row += 1
+            ws[f'A{row}'] = "# of Rooms Deployed in:"
+            ws[f'A{row}'].font = label_font
+            ws[f'B{row}'] = len(entity.components)
+            
+            row += 1
+            ws[f'A{row}'] = "Overall Quantity:"
+            ws[f'A{row}'].font = label_font
+            ws[f'B{row}'] = entity.total_items
+        
+        # Sales Summary
+        row += 2
+        ws[f'A{row}'] = "Sales Summary"
+        ws[f'A{row}'].font = header_font
+        ws[f'A{row}'].fill = header_fill
+        ws.merge_cells(f'A{row}:B{row}')
+        
+        row += 1
+        sales_count = len(entity.sales_history)
+        ws[f'A{row}'] = "Sales Records:"
+        ws[f'A{row}'].font = label_font
+        ws[f'B{row}'] = sales_count
+        
+        row += 1
+        total_quantity = sum(record.quantity for record in entity.sales_history) if entity.sales_history else 0
+        ws[f'A{row}'] = "Total Sold Quantity:"
+        ws[f'A{row}'].font = label_font
+        ws[f'B{row}'] = total_quantity
+        
+        # Adjust column widths
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 30
+        
+        # Save file
+        timestamp = datetime.now().strftime("%H-%M-%S")
+        filename = f"details_{safe_entity_id}_{timestamp}.xlsx"
+        file_path = export_folder / filename
+        
+        try:
+            wb.save(file_path)
+            messagebox.showinfo("Export Successful", f"Details exported to:\n{file_path}")
+        except Exception as e:
+            messagebox.showerror("Export Failed", f"Error saving file:\n{str(e)}")

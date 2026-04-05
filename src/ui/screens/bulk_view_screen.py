@@ -8,8 +8,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from datetime import datetime
 from typing import Dict, List, Set, Optional
 import calendar
-import csv
 from collections import defaultdict
+from pathlib import Path
 
 from src.analysis.performance_analyzer import PerformanceAnalyzer
 from src.models.performance import PerformanceData
@@ -22,7 +22,7 @@ from src.ui.chart_utils import (
     add_bar_value_labels
 )
 from src.ui.ui_utils import FontCache
-from src.ui.export_utils import export_to_csv, export_chart_to_pdf, export_data_to_excel
+from src.ui.export_utils import export_chart_to_pdf, export_data_to_excel, get_export_folder, export_screen_to_pdf
 
 
 class BulkViewScreen(ctk.CTkFrame):
@@ -49,6 +49,7 @@ class BulkViewScreen(ctk.CTkFrame):
         self.granularity = "Months"
         self.selected_years = set()
         self.time_range = (0, 11)
+        self.year_checkboxes = {}  # Initialize year checkboxes dict
         
         # UI components
         self.entity_checkboxes = {}  # {entity_id: checkbox_widget}
@@ -59,6 +60,7 @@ class BulkViewScreen(ctk.CTkFrame):
         self.sum_label = None
         self.avg_label = None
         self.count_label = None
+        self.year_checkboxes_frame = None  # Initialize frame reference
         
         # Analyzer
         self.analyzer = PerformanceAnalyzer()
@@ -89,26 +91,26 @@ class BulkViewScreen(ctk.CTkFrame):
         return FontCache.get_font(family, size, weight)
     
     def _initialize_data(self):
-        """Initialize entity data from app controller"""
+        """Initialize entity data from app controller - show blank state initially"""
         # Check if data is loaded
         if not hasattr(self.app_controller, 'current_data') or not self.app_controller.current_data:
             return
         
         rooms_dict = self.app_controller.current_data.get('rooms_dict', {})
         nc12s_dict = self.app_controller.current_data.get('nc12s_dict', {})
-        
+       
         if not rooms_dict or not nc12s_dict:
             return
         
         # Initialize years from data
         self._initialize_available_years()
         
-        # Select entity with most sales by default
-        self._select_top_entity_by_sales()
+        # Don't auto-select entities - show blank state
+        # self._select_top_entity_by_sales()  # Commented out
         
-        # Refresh UI
+        # Refresh UI to show entities but none selected
         self._refresh_entity_list()
-        self._update_chart()
+        # self._update_chart()  # Commented out - will show blank state
     
     def _initialize_available_years(self):
         """Initialize available years from all entities"""
@@ -234,9 +236,9 @@ class BulkViewScreen(ctk.CTkFrame):
         )
         list_container.grid(row=1, column=0, sticky="ew", padx=40, pady=(0, 20))
         
-        # Controls bar
+        # Controls bar - compressed to single line
         controls_frame = ctk.CTkFrame(list_container, fg_color=self.COLORS["bg_light"], corner_radius=8)
-        controls_frame.pack(fill="x", padx=15, pady=15)
+        controls_frame.pack(fill="x", padx=15, pady=10)
         
         # Search box
         search_label = ctk.CTkLabel(
@@ -249,20 +251,20 @@ class BulkViewScreen(ctk.CTkFrame):
         
         self.search_entry = ctk.CTkEntry(
             controls_frame,
-            placeholder_text="Search by ID or description...",
-            width=300,
-            height=35,
+            placeholder_text="Search by ID...",
+            width=280,
+            height=32,
             font=self._get_font(size=self.FONT_SIZES["small"]),
             fg_color=self.COLORS["bg_white"],
             border_color=self.COLORS["border"]
         )
-        self.search_entry.pack(side="left", padx=(0, 20))
+        self.search_entry.pack(side="left", padx=(0, 15))
         self.search_entry.bind("<KeyRelease>", self._on_search_change)
         
         # Sort dropdown
         sort_label = ctk.CTkLabel(
             controls_frame,
-            text="Sort by:",
+            text="Sort:",
             font=self._get_font(size=self.FONT_SIZES["small"], weight="bold"),
             text_color=self.COLORS["text_dark"]
         )
@@ -272,53 +274,40 @@ class BulkViewScreen(ctk.CTkFrame):
             controls_frame,
             values=["ID (A-Z)", "ID (Z-A)", "Sales (High to Low)", "Sales (Low to High)"],
             command=self._on_sort_change,
-            width=180,
-            height=35,
+            width=160,
+            height=32,
             fg_color=self.COLORS["accent_teal"],
             button_color=self.COLORS["accent_teal"],
             button_hover_color=self.COLORS["accent_teal_hover"],
-            font=self._get_font(size=self.FONT_SIZES["small"])
+            font=self._get_font(size=self.FONT_SIZES["xsmall"])
         )
         self.sort_dropdown.set(self.sort_by)
-        self.sort_dropdown.pack(side="left", padx=(0, 20))
+        self.sort_dropdown.pack(side="left", padx=(0, 15))
         
-        # Select All / Deselect All buttons
+        # Select All / Deselect All buttons - compressed
         self.select_all_btn = ctk.CTkButton(
             controls_frame,
             text="Select All",
             command=self._select_all,
-            width=100,
-            height=35,
+            width=90,
+            height=32,
             fg_color=self.COLORS["accent_dark"],
             hover_color=self.COLORS["accent_hover"],
-            font=self._get_font(size=self.FONT_SIZES["small"], weight="bold")
+            font=self._get_font(size=self.FONT_SIZES["xsmall"], weight="bold")
         )
-        self.select_all_btn.pack(side="left", padx=(0, 8))
+        self.select_all_btn.pack(side="left", padx=(0, 5))
         
         self.deselect_all_btn = ctk.CTkButton(
             controls_frame,
             text="Deselect All",
             command=self._deselect_all,
-            width=100,
-            height=35,
+            width=90,
+            height=32,
             fg_color=self.COLORS["text_light"],
             hover_color=self.COLORS["text_muted"],
-            font=self._get_font(size=self.FONT_SIZES["small"], weight="bold")
+            font=self._get_font(size=self.FONT_SIZES["xsmall"], weight="bold")
         )
-        self.deselect_all_btn.pack(side="left")
-        
-        # Export button on far right
-        self.export_btn = ctk.CTkButton(
-            controls_frame,
-            text="📥 Export",
-            command=self._export_data,
-            width=100,
-            height=35,
-            fg_color="#10b981",
-            hover_color="#059669",
-            font=self._get_font(size=self.FONT_SIZES["small"], weight="bold")
-        )
-        self.export_btn.pack(side="right", padx=10)
+        self.deselect_all_btn.pack(side="left", padx=(0, 10))
         
         # Scrollable entity list
         list_scroll_frame = ctk.CTkScrollableFrame(
@@ -332,7 +321,7 @@ class BulkViewScreen(ctk.CTkFrame):
         self.entity_list_frame = list_scroll_frame
     
     def _create_chart_section(self):
-        """Create chart area with controls and graph"""
+        """Create chart area with reorganized layout: controls → chart → summary + exports"""
         chart_container = ctk.CTkFrame(
             self,
             fg_color=self.COLORS["bg_white"],
@@ -342,45 +331,79 @@ class BulkViewScreen(ctk.CTkFrame):
         )
         chart_container.grid(row=2, column=0, sticky="nsew", padx=40, pady=(0, 30))
         
-        # Configure grid
-        chart_container.grid_rowconfigure(2, weight=1)
+        # Configure grid - reorganized order
+        chart_container.grid_rowconfigure(1, weight=1)  # Chart expands
         chart_container.grid_columnconfigure(0, weight=1)
         
-        # Chart controls (same as performance panel)
-        controls_frame = ctk.CTkFrame(
+        # Row 0: Chart controls (compressed to single line) - initially hidden
+        self.controls_frame = ctk.CTkFrame(
             chart_container,
             fg_color=self.COLORS["bg_light"],
             corner_radius=8
         )
-        controls_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=15)
+        # Don't grid it yet - will show when entities are selected
         
-        self._build_chart_controls(controls_frame)
+        self._build_chart_controls(self.controls_frame)
         
-        # Summary statistics bar
-        stats_frame = ctk.CTkFrame(
-            chart_container,
-            fg_color=self.COLORS["bg_light"],
-            corner_radius=8
-        )
-        stats_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 15))
-        
-        self._build_stats_bar(stats_frame)
-        
-        # Chart area
+        # Row 1: Chart area
         chart_frame = ctk.CTkFrame(
             chart_container,
             fg_color=self.COLORS["bg_white"],
             corner_radius=0
         )
-        chart_frame.grid(row=2, column=0, sticky="nsew", padx=15, pady=(0, 15))
+        chart_frame.grid(row=1, column=0, sticky="nsew", padx=15, pady=(0, 10))
         
         self._build_chart(chart_frame)
+        
+        # Row 2: Summary statistics + Export buttons - initially hidden
+        self.bottom_frame = ctk.CTkFrame(
+            chart_container,
+            fg_color=self.COLORS["bg_light"],
+            corner_radius=8
+        )
+        # Don't grid it yet - will show when entities are selected
+        
+        # Left side: Summary stats
+        stats_container = ctk.CTkFrame(self.bottom_frame, fg_color="transparent")
+        stats_container.pack(side="left", fill="x", expand=True, padx=10, pady=10)
+        
+        self._build_stats_bar(stats_container)
+        
+        # Right side: Export buttons adjacent to chart
+        export_frame = ctk.CTkFrame(self.bottom_frame, fg_color="transparent")
+        export_frame.pack(side="right", padx=10, pady=10)
+        
+        # Excel Export button
+        self.export_excel_btn = ctk.CTkButton(
+            export_frame,
+            text="📊 Export Excel",
+            command=self._export_excel,
+            width=130,
+            height=35,
+            fg_color="#0ea5e9",
+            hover_color="#0284c7",
+            font=self._get_font(size=self.FONT_SIZES["small"], weight="bold")
+        )
+        self.export_excel_btn.pack(side="left", padx=(0, 8))
+        
+        # PDF Export button
+        self.export_pdf_btn = ctk.CTkButton(
+            export_frame,
+            text="📑 Export PDF",
+            command=self._export_pdf,
+            width=130,
+            height=35,
+            fg_color="#f59e0b",
+            hover_color="#d97706",
+            font=self._get_font(size=self.FONT_SIZES["small"], weight="bold")
+        )
+        self.export_pdf_btn.pack(side="left")
     
     def _build_chart_controls(self, parent):
-        """Build chart control widgets (same as performance panel)"""
+        """Build chart control widgets - compressed to single line"""
         # Outer frame for centering
         outer_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        outer_frame.pack(fill="x", padx=20, pady=15)
+        outer_frame.pack(fill="x", padx=15, pady=8)
         
         # Inner frame with all controls - centered
         controls_frame = ctk.CTkFrame(outer_frame, fg_color="transparent")
@@ -393,19 +416,21 @@ class BulkViewScreen(ctk.CTkFrame):
             font=self._get_font(size=self.FONT_SIZES["small"], weight="bold"),
             text_color=self.COLORS["text_dark"]
         )
-        granularity_label.pack(side="left", padx=(0, 10))
+        granularity_label.pack(side="left", padx=(0, 5))
         
         self.granularity_dropdown = ctk.CTkOptionMenu(
             controls_frame,
             values=["Months", "Quarters", "Years"],
             command=self._on_granularity_change,
-            width=120,
+            width=110,
+            height=32,
             fg_color=self.COLORS["accent_teal"],
             button_color=self.COLORS["accent_teal"],
-            button_hover_color="#1C7A7A"
+            button_hover_color="#1C7A7A",
+            font=self._get_font(size=self.FONT_SIZES["xsmall"])
         )
         self.granularity_dropdown.set(self.granularity)
-        self.granularity_dropdown.pack(side="left", padx=(0, 30))
+        self.granularity_dropdown.pack(side="left", padx=(0, 20))
         
         # 2. Time Range dropdowns
         time_range_label = ctk.CTkLabel(
@@ -414,52 +439,56 @@ class BulkViewScreen(ctk.CTkFrame):
             font=self._get_font(size=self.FONT_SIZES["small"], weight="bold"),
             text_color=self.COLORS["text_dark"]
         )
-        time_range_label.pack(side="left", padx=(0, 10))
+        time_range_label.pack(side="left", padx=(0, 5))
         
         # From dropdown
         from_label = ctk.CTkLabel(
             controls_frame,
             text="From:",
-            font=self._get_font(size=self.FONT_SIZES["small"]),
+            font=self._get_font(size=self.FONT_SIZES["xsmall"]),
             text_color=self.COLORS["text_muted"]
         )
-        from_label.pack(side="left", padx=(0, 5))
+        from_label.pack(side="left", padx=(0, 3))
         
         all_periods = self._get_all_period_labels()
         self.range_dropdown_start = ctk.CTkOptionMenu(
             controls_frame,
             values=all_periods if all_periods else ["1"],
             command=lambda _: self._on_range_change(),
-            width=100,
+            width=90,
+            height=32,
             fg_color=self.COLORS["accent_teal"],
             button_color=self.COLORS["accent_teal"],
-            button_hover_color="#1C7A7A"
+            button_hover_color="#1C7A7A",
+            font=self._get_font(size=self.FONT_SIZES["xsmall"])
         )
         self.range_dropdown_start.set(all_periods[0] if all_periods else "1")
-        self.range_dropdown_start.pack(side="left", padx=(0, 15))
+        self.range_dropdown_start.pack(side="left", padx=(0, 10))
         
         # To dropdown
         to_label = ctk.CTkLabel(
             controls_frame,
             text="To:",
-            font=self._get_font(size=self.FONT_SIZES["small"]),
+            font=self._get_font(size=self.FONT_SIZES["xsmall"]),
             text_color=self.COLORS["text_muted"]
         )
-        to_label.pack(side="left", padx=(0, 5))
+        to_label.pack(side="left", padx=(0, 3))
         
         max_periods = self._get_max_periods()
         self.range_dropdown_end = ctk.CTkOptionMenu(
             controls_frame,
             values=all_periods if all_periods else ["1"],
             command=lambda _: self._on_range_change(),
-            width=100,
+            width=90,
+            height=32,
             fg_color=self.COLORS["accent_teal"],
             button_color=self.COLORS["accent_teal"],
-            button_hover_color="#1C7A7A"
+            button_hover_color="#1C7A7A",
+            font=self._get_font(size=self.FONT_SIZES["xsmall"])
         )
         end_idx = max_periods - 1 if all_periods else 0
         self.range_dropdown_end.set(all_periods[end_idx] if all_periods and end_idx < len(all_periods) else "1")
-        self.range_dropdown_end.pack(side="left", padx=(0, 30))
+        self.range_dropdown_end.pack(side="left", padx=(0, 20))
         
         # 3. Year checkboxes
         years_label = ctk.CTkLabel(
@@ -468,7 +497,7 @@ class BulkViewScreen(ctk.CTkFrame):
             font=self._get_font(size=self.FONT_SIZES["small"], weight="bold"),
             text_color=self.COLORS["text_dark"]
         )
-        years_label.pack(side="left", padx=(0, 10))
+        years_label.pack(side="left", padx=(0, 5))
         
         self.year_checkboxes_frame = ctk.CTkFrame(controls_frame, fg_color="transparent")
         self.year_checkboxes_frame.pack(side="left")
@@ -477,9 +506,10 @@ class BulkViewScreen(ctk.CTkFrame):
     
     def _rebuild_year_checkboxes(self):
         """Rebuild year checkboxes based on available data"""
-        # Clear existing
-        for widget in self.year_checkboxes_frame.winfo_children():
-            widget.destroy()
+        # Clear existing only if frame exists
+        if self.year_checkboxes_frame:
+            for widget in self.year_checkboxes_frame.winfo_children():
+                widget.destroy()
         
         available_years = self._get_available_years()
         self.year_checkboxes = {}
@@ -491,22 +521,32 @@ class BulkViewScreen(ctk.CTkFrame):
                 self.year_checkboxes_frame,
                 text=str(year),
                 command=lambda y=year: self._on_year_toggle(y),
-                font=self._get_font(size=self.FONT_SIZES["small"]),
+                font=self._get_font(size=self.FONT_SIZES["xsmall"]),
                 fg_color=color,
                 hover_color=color,
-                border_color=color
+                border_color=color,
+                width=65
             )
             
             if year in self.selected_years:
                 checkbox.select()
                 
-            checkbox.pack(side="left", padx=(0, 15))
+            checkbox.pack(side="left", padx=(0, 8))
             self.year_checkboxes[year] = checkbox
     
     def _build_stats_bar(self, parent):
-        """Build summary statistics bar"""
+        """Build summary statistics bar with Summary prefix"""
         stats_container = ctk.CTkFrame(parent, fg_color="transparent")
-        stats_container.pack(fill="x", padx=20, pady=10)
+        stats_container.pack(fill="x", padx=5)
+        
+        # Summary label prefix
+        summary_prefix = ctk.CTkLabel(
+            stats_container,
+            text="Summary:",
+            font=self._get_font(size=self.FONT_SIZES["body"], weight="bold"),
+            text_color=self.COLORS["text_dark"]
+        )
+        summary_prefix.pack(side="left", padx=(5, 15))
         
         # Count label (left)
         self.count_label = ctk.CTkLabel(
@@ -515,7 +555,7 @@ class BulkViewScreen(ctk.CTkFrame):
             font=self._get_font(size=self.FONT_SIZES["body"], weight="bold"),
             text_color=self.COLORS["text_dark"]
         )
-        self.count_label.pack(side="left", padx=10)
+        self.count_label.pack(side="left", padx=(0, 8))
         
         # Separator
         sep1 = ctk.CTkLabel(stats_container, text="|", text_color=self.COLORS["border"])
@@ -528,7 +568,7 @@ class BulkViewScreen(ctk.CTkFrame):
             font=self._get_font(size=self.FONT_SIZES["body"], weight="bold"),
             text_color=self.COLORS["accent_teal"]
         )
-        self.sum_label.pack(side="left", padx=10)
+        self.sum_label.pack(side="left", padx=(0, 8))
         
         # Separator
         sep2 = ctk.CTkLabel(stats_container, text="|", text_color=self.COLORS["border"])
@@ -541,7 +581,7 @@ class BulkViewScreen(ctk.CTkFrame):
             font=self._get_font(size=self.FONT_SIZES["body"], weight="bold"),
             text_color=self.COLORS["accent_dark"]
         )
-        self.avg_label.pack(side="left", padx=10)
+        self.avg_label.pack(side="left", padx=0)
     
     def _build_chart(self, parent):
         """Build matplotlib chart"""
@@ -582,7 +622,7 @@ class BulkViewScreen(ctk.CTkFrame):
         return get_all_period_labels(self.granularity, available_years)
     
     def _aggregate_bulk_sales_data(self) -> Dict[int, Dict[str, int]]:
-        """Aggregate sales data from all selected entities
+        """Aggregate sales data from all selected entities with robustness checks
         
         Returns:
             Dictionary: {year: {period_label: total_quantity}}
@@ -592,6 +632,9 @@ class BulkViewScreen(ctk.CTkFrame):
             return {}
         
         entities = self._get_current_entities()
+        if not entities:
+            return {}
+        
         analyzer_granularity = self.granularity_map.get(self.granularity, "monthly")
         
         # Aggregate data across all selected entities
@@ -599,6 +642,10 @@ class BulkViewScreen(ctk.CTkFrame):
         
         for entity in entities:
             if entity.id not in selected_ids:
+                continue
+            
+            # Robustness check: verify entity has sales history
+            if not hasattr(entity, 'sales_history') or not entity.sales_history:
                 continue
             
             try:
@@ -613,10 +660,14 @@ class BulkViewScreen(ctk.CTkFrame):
                     granularity=analyzer_granularity
                 )
                 
-                # Add to aggregated data
+                # Robustness check: verify periods exist
+                if not hasattr(performance_data, 'periods') or not performance_data.periods:
+                    continue
+                
+                # Add to aggregated data - only for selected years
                 for period in performance_data.periods:
                     year = extract_year_from_period(period.label, analyzer_granularity)
-                    if year is None:
+                    if year is None or year not in self.selected_years:
                         continue
                     
                     ui_label = convert_period_label_to_ui(period.label, analyzer_granularity)
@@ -635,6 +686,33 @@ class BulkViewScreen(ctk.CTkFrame):
         
         # Clear previous chart
         self.ax.clear()  # type: ignore
+        
+        # Check if any entities are selected
+        selected_ids = self._get_selected_entities()
+        if not selected_ids:
+            # Hide controls and bottom frame
+            if hasattr(self, 'controls_frame'):
+                self.controls_frame.grid_remove()
+            if hasattr(self, 'bottom_frame'):
+                self.bottom_frame.grid_remove()
+            
+            # Show blank state message
+            if self.ax is not None:
+                self.ax.text(0.5, 0.5, 'Select entities to analyze',  # type: ignore
+                            horizontalalignment='center',
+                            verticalalignment='center',
+                            transform=self.ax.transAxes,
+                            fontsize=16, color='#666666', style='italic')
+            if self.canvas:
+                self.canvas.draw()
+            self._update_stats(0, 0, 0)
+            return
+        
+        # Show controls and bottom frame when entities are selected
+        if hasattr(self, 'controls_frame'):
+            self.controls_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=10)
+        if hasattr(self, 'bottom_frame'):
+            self.bottom_frame.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 15))
         
         # Get aggregated data
         data = self._aggregate_bulk_sales_data()
@@ -789,22 +867,46 @@ class BulkViewScreen(ctk.CTkFrame):
             no_data.pack(pady=30)
             return
         
-        # Filter by search
+        # Filter by search (ID only)
         filtered_entities = []
         search_lower = self.search_text.lower()
         for entity in entities:
             if search_lower:
-                if search_lower not in entity.id.lower() and search_lower not in entity.description.lower():
+                if search_lower not in entity.id.lower():
                     continue
             filtered_entities.append(entity)
         
-        # Calculate total sales for sorting
+        # Calculate total sales for sorting - MATCHED TO CHART CALCULATION
+        # Use same logic as _aggregate_bulk_sales_data to ensure consistency
         entity_sales = {}
+        analyzer_granularity = self.granularity_map.get(self.granularity, "monthly")
+        
         for entity in filtered_entities:
             total = 0
-            if hasattr(entity, 'sales_history'):
-                for record in entity.sales_history:
-                    total += record.quantity
+            if hasattr(entity, 'sales_history') and entity.sales_history:
+                try:
+                    # Wrap entity for analyzer
+                    entity_type = "12NC" if self.current_mode == "12nc" else "room"
+                    g_entity_obj = G_entity(g_entity=entity, entity_type=entity_type)
+                    
+                    # Analyze performance
+                    performance_data: PerformanceData = self.analyzer.analyze(
+                        analyzed_obj=g_entity_obj,
+                        lookback_years=4,
+                        granularity=analyzer_granularity
+                    )
+                    
+                    # Sum up quantities for selected years only
+                    for period in performance_data.periods:
+                        year = extract_year_from_period(period.label, analyzer_granularity)
+                        if year and year in self.selected_years:
+                            total += period.quantity
+                except Exception as e:
+                    # Fallback to raw sales history
+                    for record in entity.sales_history:
+                        if record.date.year in self.selected_years:
+                            total += record.quantity
+            
             entity_sales[entity.id] = total
         
         # Sort
@@ -867,7 +969,7 @@ class BulkViewScreen(ctk.CTkFrame):
             )
             desc_label.pack(side="left", fill="x", expand=True, padx=(0, 10))
             
-            # Sales count
+            # Sales count - uses calculated value for consistency
             sales_count = entity_sales.get(entity.id, 0)
             sales_label = ctk.CTkLabel(
                 entity_frame,
@@ -885,7 +987,7 @@ class BulkViewScreen(ctk.CTkFrame):
     
     def _on_mode_change(self, value):
         """Handle mode toggle change"""
-        self.current_mode = "12nc" if value == "12NC Mode" else "room"
+        self.current_mode = "12nc" if "12NC" in value else "room"
         
         # Reset search
         self.search_text = ""
@@ -1005,61 +1107,65 @@ class BulkViewScreen(ctk.CTkFrame):
         self.time_range = (start, end)
         self._update_chart()
     
-    def _export_data(self):
-        """Export bulk analysis data to CSV"""
+    def _get_export_folder(self) -> Path:
+        """Get export folder path based on source files location"""
+        # Try to get CBOM path from loaded files
+        if hasattr(self.app_controller, 'loaded_files') and self.app_controller.loaded_files:
+            cbom_path = self.app_controller.loaded_files.get('cbom')
+            if cbom_path:
+                return get_export_folder(cbom_path)
+        
+        # Fallback to current working directory
+        return get_export_folder()
+    
+    def _export_excel(self):
+        """Export bulk analysis data to Excel in predetermined folder with entity IDs"""
         selected_ids = self._get_selected_entities()
         if not selected_ids:
             messagebox.showwarning("No Data", "Please select entities to export.")
             return
         
-        # Ask for file location
-        file_path = filedialog.asksaveasfilename(
-            defaultextension=".csv",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
-            initialfile=f"bulk_analysis_{self.current_mode}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        )
+        # Get aggregated data
+        data = self._aggregate_bulk_sales_data()
+        all_periods = self._get_all_period_labels()
         
-        if not file_path:
+        # Get export folder
+        export_folder = self._get_export_folder()
+        
+        # Export using shared utility with entity IDs
+        mode_text = "12NC" if self.current_mode == "12nc" else "Room"
+        filename_prefix = f"bulk_analysis_{mode_text}"
+        
+        export_data_to_excel(
+            data=data,
+            periods=all_periods,
+            years=list(self.selected_years),
+            export_folder=export_folder,
+            filename_prefix=filename_prefix,
+            entity_count=len(selected_ids),
+            mode=self.current_mode,
+            granularity=self.granularity,
+            selected_entity_ids=list(selected_ids)
+        )
+    
+    def _export_pdf(self):
+        """Export screenshot of entire bulk view screen to PDF"""
+        selected_ids = self._get_selected_entities()
+        if not selected_ids:
+            messagebox.showwarning("No Data", "Please select entities to export.")
             return
         
-        try:
-            # Get aggregated data
-            data = self._aggregate_bulk_sales_data()
-            all_periods = self._get_all_period_labels()
-            
-            # Write CSV
-            with open(file_path, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                
-                # Header
-                writer.writerow(['Analysis Type', f'Bulk {self.current_mode.upper()} Analysis'])
-                writer.writerow(['Selected Entities', len(selected_ids)])
-                writer.writerow(['Granularity', self.granularity])
-                writer.writerow(['Export Date', datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
-                writer.writerow([])
-                
-                # Data table header
-                header = ['Period'] + [str(year) for year in sorted(self.selected_years)]
-                writer.writerow(header)
-                
-                # Data rows
-                for period in all_periods:
-                    row = [period]
-                    for year in sorted(self.selected_years):
-                        value = data.get(year, {}).get(period, 0)
-                        row.append(str(int(value)))
-                    writer.writerow(row)
-                
-                writer.writerow([])
-                
-                # Summary
-                total = sum(data.get(year, {}).get(period, 0) 
-                           for year in self.selected_years 
-                           for period in all_periods)
-                writer.writerow(['Total', int(total)])
-                writer.writerow(['Average per Entity', int(total / len(selected_ids)) if selected_ids else 0])
-            
-            messagebox.showinfo("Export Successful", f"Data exported to:\n{file_path}")
-            
-        except Exception as e:
-            messagebox.showerror("Export Failed", f"Error exporting data:\n{str(e)}")
+        # Get export folder
+        export_folder = self._get_export_folder()
+        
+        # Export screenshot of the entire screen
+        mode_text = "12NC" if self.current_mode == "12nc" else "Room"
+        filename_prefix = f"bulk_analysis_{mode_text}_screenshot"
+        title = f"Bulk Analysis - {mode_text} ({self.granularity})"
+        
+        export_screen_to_pdf(
+            widget=self,
+            export_folder=export_folder,
+            filename_prefix=filename_prefix,
+            title=title
+        )

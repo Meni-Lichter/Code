@@ -1,11 +1,10 @@
 """Shared export utilities for Excel and PDF"""
 
-import csv
+import os
 from datetime import datetime
 from pathlib import Path
-from tkinter import filedialog, messagebox
+from tkinter import messagebox
 from typing import Dict, List, Optional
-import io
 
 try:
     from matplotlib.backends.backend_pdf import PdfPages
@@ -15,91 +14,114 @@ except ImportError:
     HAS_MATPLOTLIB = False
 
 
-def export_to_csv(
-    data: Dict[int, Dict[str, int]],
-    periods: List[str],
-    years: List[int],
-    entity_count: int,
-    mode: str,
-    granularity: str,
-    default_filename: Optional[str] = None
-) -> bool:
-    """Export bulk analysis data to CSV
+def get_export_folder(source_file_path: Optional[str] = None) -> Path:
+    """Get or create date-stamped export folder next to source data files
+    Reuses folder if already exists for that day
     
     Args:
-        data: Dictionary {year: {period: value}}
-        periods: List of period labels
-        years: List of selected years
-        entity_count: Number of entities selected
-        mode: Analysis mode ("12nc" or "room")
-        granularity: Time granularity
-        default_filename: Optional default filename
+        source_file_path: Path to source file (CBOM, YMBD, etc.) - uses its parent
+        
+    Returns:
+        Path to export folder with date stamp: mm-dd-yyyy
+    """
+    # Create date-only folder name
+    date_stamp = datetime.now().strftime("%m-%d-%Y")
+    folder_name = f"Exports_{date_stamp}"
+    
+    if source_file_path and os.path.exists(source_file_path):
+        # Create export folder next to source file
+        parent_dir = Path(source_file_path).parent
+        export_folder = parent_dir / folder_name
+    else:
+        # Fallback to current working directory
+        export_folder = Path.cwd() / folder_name
+    
+    # Create folder if it doesn't exist (reuse if already exists)
+    export_folder.mkdir(parents=True, exist_ok=True)
+    
+    return export_folder
+
+
+def export_screen_to_pdf(
+    widget,
+    export_folder: Path,
+    filename_prefix: str = "screenshot",
+    title: Optional[str] = None
+) -> bool:
+    """Export screenshot of widget/screen to PDF
+    
+    Args:
+        widget: The tkinter widget to capture
+        export_folder: Path to export folder
+        filename_prefix: Prefix for filename
+        title: Optional title for the PDF
         
     Returns:
         True if export succeeded, False otherwise
     """
-    if default_filename is None:
-        default_filename = f"bulk_analysis_{mode}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    
-    file_path = filedialog.asksaveasfilename(
-        defaultextension=".csv",
-        filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
-        initialfile=default_filename
-    )
-    
-    if not file_path:
+    try:
+        from PIL import ImageGrab
+        from matplotlib.backends.backend_pdf import PdfPages
+        import matplotlib.pyplot as plt
+    except ImportError:
+        messagebox.showerror("Export Failed", "PIL or Matplotlib is required for screenshot export")
         return False
     
+    timestamp = datetime.now().strftime("%H-%M-%S")
+    filename = f"{filename_prefix}_{timestamp}.pdf"
+    file_path = export_folder / filename
+    
     try:
-        with open(file_path, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            
-            # Header
-            writer.writerow(['Analysis Type', f'Bulk {mode.upper()} Analysis'])
-            writer.writerow(['Selected Entities', entity_count])
-            writer.writerow(['Granularity', granularity])
-            writer.writerow(['Export Date', datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
-            writer.writerow([])
-            
-            # Data table header
-            header = ['Period'] + [str(year) for year in sorted(years)]
-            writer.writerow(header)
-            
-            # Data rows
-            for period in periods:
-                row = [period]
-                for year in sorted(years):
-                    value = data.get(year, {}).get(period, 0)
-                    row.append(str(int(value)))
-                writer.writerow(row)
-            
-            writer.writerow([])
-            
-            # Summary
-            total = sum(data.get(year, {}).get(period, 0) 
-                       for year in years 
-                       for period in periods)
-            writer.writerow(['Total', int(total)])
-            writer.writerow(['Average per Entity', int(total / entity_count) if entity_count else 0])
+        # Get widget position and size
+        x = widget.winfo_rootx()
+        y = widget.winfo_rooty()
+        width = widget.winfo_width()
+        height = widget.winfo_height()
         
-        messagebox.showinfo("Export Successful", f"Data exported to:\n{file_path}")
+        # Capture screenshot
+        screenshot = ImageGrab.grab(bbox=(x, y, x + width, y + height))
+        
+        # Save to PDF
+        with PdfPages(file_path) as pdf:
+            fig = plt.figure(figsize=(screenshot.width / 100, screenshot.height / 100), dpi=100)
+            ax = fig.add_subplot(111)
+            ax.imshow(screenshot)
+            ax.axis('off')
+            
+            if title:
+                fig.suptitle(title, fontsize=16, fontweight='bold', y=0.98)
+            
+            plt.tight_layout()
+            pdf.savefig(fig, bbox_inches='tight')
+            
+            # Add metadata
+            d = pdf.infodict()
+            d['Title'] = title or 'Screen Capture'
+            d['Author'] = 'Performance Center'
+            d['Creator'] = 'Performance Center Application'
+            d['CreationDate'] = datetime.now()
+        
+        plt.close(fig)
+        messagebox.showinfo("Export Successful", f"Screenshot exported to:\n{file_path}")
         return True
         
     except Exception as e:
-        messagebox.showerror("Export Failed", f"Error exporting data:\n{str(e)}")
+        messagebox.showerror("Export Failed", f"Error capturing screenshot:\n{str(e)}")
         return False
 
 
 def export_chart_to_pdf(
     figure,
-    default_filename: Optional[str] = None,
+    export_folder: Path,
+    filename_prefix: str = "chart",
     title: Optional[str] = None
 ) -> bool:
-    """Export matplotlib figure to PDF
+    """Export matplotlib figure to PDF in predetermined folder
     
     Args:
         figure: Matplotlib figure object
-        default_filename: Optional default filename
+        export_folder: Path to export folder
+        filename_prefix: Prefix for filename
         title: Optional title for the PDF
         
     Returns:
@@ -109,17 +131,9 @@ def export_chart_to_pdf(
         messagebox.showerror("Export Failed", "Matplotlib is not available for PDF export")
         return False
     
-    if default_filename is None:
-        default_filename = f"chart_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    
-    file_path = filedialog.asksaveasfilename(
-        defaultextension=".pdf",
-        filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")],
-        initialfile=default_filename
-    )
-    
-    if not file_path:
-        return False
+    timestamp = datetime.now().strftime("%H-%M-%S")
+    filename = f"{filename_prefix}_{timestamp}.pdf"
+    file_path = export_folder / filename
     
     try:
         with PdfPages(file_path) as pdf:
@@ -145,21 +159,24 @@ def export_data_to_excel(
     data: Dict[int, Dict[str, int]],
     periods: List[str],
     years: List[int],
-    entity_count: int,
-    mode: str,
-    granularity: str,
-    default_filename: Optional[str] = None
+    export_folder: Path,
+    filename_prefix: str,
+    entity_count: int = 0,
+    mode: str = "",
+    granularity: str = "",
+    selected_entity_ids: Optional[List[str]] = None
 ) -> bool:
-    """Export data to Excel file
+    """Export data to Excel file in predetermined folder
     
     Args:
         data: Dictionary {year: {period: value}}
         periods: List of period labels
         years: List of selected years
+        export_folder: Path to export folder
+        filename_prefix: Prefix for filename
         entity_count: Number of entities selected
         mode: Analysis mode ("12nc" or "room")
         granularity: Time granularity
-        default_filename: Optional default filename
         
     Returns:
         True if export succeeded, False otherwise
@@ -174,22 +191,18 @@ def export_data_to_excel(
         )
         return False
     
-    if default_filename is None:
-        default_filename = f"bulk_analysis_{mode}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-    
-    file_path = filedialog.asksaveasfilename(
-        defaultextension=".xlsx",
-        filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
-        initialfile=default_filename
-    )
-    
-    if not file_path:
-        return False
+    timestamp = datetime.now().strftime("%H-%M-%S")
+    filename = f"{filename_prefix}_{timestamp}.xlsx"
+    file_path = export_folder / filename
     
     try:
         # Create workbook
         wb = openpyxl.Workbook()
         ws = wb.active
+        
+        if ws is None:
+            raise Exception("Failed to create worksheet")
+        
         ws.title = "Bulk Analysis"
         
         # Styles
@@ -211,8 +224,19 @@ def export_data_to_excel(
         ws['A4'] = 'Export Date'
         ws['B4'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        # Data table header (starting at row 6)
-        start_row = 6
+        # Add selected entity IDs if provided
+        current_row = 5
+        if selected_entity_ids:
+            ws.cell(current_row, 1, 'Selected Entities').font = header_font
+            # List entity IDs
+            for idx, entity_id in enumerate(selected_entity_ids, start=1):
+                ws.cell(current_row, idx + 1, entity_id)
+            current_row += 1
+        
+        current_row += 1  # Blank row
+        
+        # Data table header
+        start_row = current_row
         ws.cell(start_row, 1, 'Period').font = header_font
         ws.cell(start_row, 1).fill = header_fill
         

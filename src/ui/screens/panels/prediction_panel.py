@@ -1,11 +1,20 @@
 """Prediction Panel - Shows forecast and prediction data"""
 
+from tkinter import messagebox
+
 import customtkinter as ctk
 from datetime import date, datetime
+from pathlib import Path
 from src.analysis.performance_analyzer import PerformanceAnalyzer
 from src.analysis.predictor import Predictor
 from src.models.mapping import G_entity
 from src.utils.date_utils import get_next_period_label
+try:
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    HAS_OPENPYXL = True
+except ImportError:
+    HAS_OPENPYXL = False
 
 
 class PredictionPanel:
@@ -609,4 +618,119 @@ class PredictionPanel:
             font=self._get_font(size=self.FONT_SIZES["small"]),
             text_color="red"
         )
-        error_label.pack(padx=15, pady=15)
+        error_label.pack(pady=20)
+    
+    def export_to_excel(self, entity, export_folder, mode):
+        """Export prediction panel data to Excel"""
+        
+        if not HAS_OPENPYXL:
+            messagebox.showerror("Export Failed", "openpyxl is required for Excel export")
+            return
+        
+        if not self.prediction_result:
+            messagebox.showwarning("No Data", "No prediction available to export. Generate a prediction first.")
+            return
+        
+        # Create workbook
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        if ws is None:
+            messagebox.showerror("Export Failed", "Failed to create Excel worksheet")
+            return
+        ws.title = "Prediction"
+        
+        # Styles
+        header_fill = PatternFill(start_color="4A8F93", end_color="4A8F93", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        title_font = Font(bold=True, size=14)
+        label_font = Font(bold=True, size=11)
+        highlight_fill = PatternFill(start_color="D4EDDA", end_color="D4EDDA", fill_type="solid")
+        highlight_font = Font(bold=True, size=12, color="155724")
+        
+        # Title
+        entity_id = entity.id
+        safe_entity_id = entity_id.replace('/', '_').replace('\\', '_')
+        mode_text = "12NC" if mode == "12nc" else "Room"
+        
+        ws['A1'] = f"Prediction for {mode_text} {entity_id}"
+        ws['A1'].font = title_font
+        ws.merge_cells('A1:B1')
+        
+        # Prediction Results
+        row = 3
+        ws[f'A{row}'] = "Prediction Results"
+        ws[f'A{row}'].font = header_font
+        ws[f'A{row}'].fill = header_fill
+        ws.merge_cells(f'A{row}:B{row}')
+        
+        pred = self.prediction_result
+        
+        # Data
+        data_rows = [
+            ("Granularity:", pred.granularity.title()),
+            ("Period:", pred.period_label),
+            ("Method:", pred.method.replace("_", " ").title()),
+            ("Baseline:", f"{pred.baseline:.1f}"),
+            ("Buffer %:", f"{pred.buffer_percentage:.1f}%"),
+            ("Buffer Amount:", f"{pred.buffer_amount:.1f}"),
+            ("Predicted Quantity:", f"{pred.predicted_quantity:.1f}")
+        ]
+        
+        for label, value in data_rows:
+            row += 1
+            ws[f'A{row}'] = label
+            ws[f'A{row}'].font = label_font
+            ws[f'B{row}'] = value
+            
+            # Highlight the final prediction
+            if "Predicted Quantity" in label:
+                ws[f'A{row}'].fill = highlight_fill
+                ws[f'B{row}'].fill = highlight_fill
+                ws[f'B{row}'].font = highlight_font
+        
+        # Configuration Details
+        row += 2
+        ws[f'A{row}'] = "Configuration"
+        ws[f'A{row}'].font = header_font
+        ws[f'A{row}'].fill = header_fill
+        ws.merge_cells(f'A{row}:B{row}')
+        
+        # Add method-specific parameters
+        config_rows = []
+        if hasattr(pred, 'n_periods') and pred.n_periods:
+            config_rows.append(("N Periods Used:", str(pred.n_periods)))
+        if hasattr(pred, 'n_years') and pred.n_years:
+            config_rows.append(("N Years Used:", str(pred.n_years)))
+        
+        for label, value in config_rows:
+            row += 1
+            ws[f'A{row}'] = label
+            ws[f'A{row}'].font = Font(italic=True)
+            ws[f'B{row}'] = value
+        
+        # Metadata
+        row += 2
+        ws[f'A{row}'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        ws[f'A{row}'].font = Font(italic=True, size=9)
+        ws.merge_cells(f'A{row}:B{row}')
+        
+        # Adjust column widths
+        ws.column_dimensions['A'].width = 25
+        ws.column_dimensions['B'].width = 25
+        
+        # Save file
+        timestamp = datetime.now().strftime("%H-%M-%S")
+        filename = f"prediction_{safe_entity_id}_{timestamp}.xlsx"
+        file_path = export_folder / filename
+        
+        try:
+            wb.save(file_path)
+            messagebox.showinfo("Export Successful", f"Prediction exported to:\n{file_path}")
+        except Exception as e:
+            messagebox.showerror("Export Failed", f"Error saving file:\n{str(e)}")
+      
+    
+        messagebox.showinfo(
+            "Export Not Available",
+            "Excel export for Prediction panel will be available in a future update.")
+        

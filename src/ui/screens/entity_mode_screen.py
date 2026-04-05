@@ -3,6 +3,7 @@
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import Listbox
+from tkinter import messagebox
 
 # Import panel managers
 from src.ui.screens.panels import (
@@ -13,6 +14,7 @@ from src.ui.screens.panels import (
 )
 from src.ui.theme import COLORS, FONT_SIZES, MODE_CONFIG
 from src.ui.ui_utils import FontCache
+from src.ui.export_utils import get_export_folder, export_screen_to_pdf
 
 
 class EntityModeScreen(ctk.CTkFrame):
@@ -87,7 +89,8 @@ class EntityModeScreen(ctk.CTkFrame):
             self.performance_panel,
             self.COLORS,
             self.FONT_SIZES,
-            self._get_font
+            self._get_font,
+            app_controller=self.app_controller
         )
         
         self.prediction_panel_manager = PredictionPanel(
@@ -1042,7 +1045,118 @@ class EntityModeScreen(ctk.CTkFrame):
             Does: Exports the panel data to the specified format
             Returns: None
         """
-        print(f"Exporting '{panel_title}' as {format_type.upper()}")
+        print(f"[EXPORT] _export_panel called with title='{panel_title}', format='{format_type}'")
+        
+        # Get current entity ID
+        current_entity_id = self.selected_entity_12nc if self.current_mode == "12nc" else self.selected_entity_room
+        
+        print(f"[EXPORT] Current entity ID: {current_entity_id}")
+        
+        if not current_entity_id:
+            messagebox.showwarning("No Entity Selected", "Please select an entity to export.")
+            return
+        
+        # Convert entity ID to full entity object
+        current_entity = self._get_entity_object(current_entity_id)
+        
+        print(f"[EXPORT] Entity object retrieved: {type(current_entity).__name__ if current_entity else 'None'}")
+        
+        if not current_entity:
+            messagebox.showerror("Error", f"Could not retrieve entity object for ID: {current_entity_id}")
+            return
+        
+        # Get export folder
+        export_folder = self._get_export_folder()
+        print(f"[EXPORT] Export folder: {export_folder}")
+        
+        if not export_folder:
+            return
+        
+        # Map panel titles to widgets and managers
+        panel_map = {
+            "Performance": (self.performance_panel, self.performance_panel_manager),
+            "Details": (self.details_panel, self.details_panel_manager),
+            "Belonging": (self.belonging_panel, self.belonging_panel_manager),
+            "Prediction": (self.prediction_panel, self.prediction_panel_manager)
+        }
+        
+        # Find the matching panel
+        panel_widget = None
+        panel_manager = None
+        panel_name = None
+        
+        for name, (widget, manager) in panel_map.items():
+            if name in panel_title:
+                panel_widget = widget
+                panel_manager = manager
+                panel_name = name
+                print(f"[EXPORT] Matched panel: {name}")
+                break
+        
+        if not panel_widget or not panel_manager:
+            print(f"[EXPORT] ERROR: Panel not found for title '{panel_title}'")
+            messagebox.showinfo("Export", f"Panel '{panel_title}' not found.")
+            return
+        
+        print(f"[EXPORT] Proceeding with export for panel: {panel_name}, format: {format_type}")
+        
+        # Handle export based on format
+        if format_type == "pdf":
+            # PDF export: screenshot of the panel (shared for all panels)
+            entity_id = current_entity.id
+            safe_entity_id = entity_id.replace('/', '_').replace('\\', '_')
+            filename_prefix = f"{panel_name.lower()}_{safe_entity_id}_screenshot"
+            mode_text = "12NC" if self.current_mode == "12nc" else "Room"
+            title = f"{panel_name} - {mode_text} {entity_id}"
+            
+            print(f"[EXPORT] Calling export_screen_to_pdf with:")
+            print(f"  - filename_prefix: {filename_prefix}")
+            print(f"  - title: {title}")
+            
+            try:
+                result = export_screen_to_pdf(
+                    widget=panel_widget,
+                    export_folder=export_folder,
+                    filename_prefix=filename_prefix,
+                    title=title
+                )
+                print(f"[EXPORT] export_screen_to_pdf returned: {result}")
+            except Exception as e:
+                print(f"[EXPORT] ERROR in export_screen_to_pdf: {e}")
+                import traceback
+                traceback.print_exc()
+                messagebox.showerror("Export Failed", f"Error exporting to PDF:\n{str(e)}")
+            
+        elif format_type == "excel":
+            # Excel export: delegate to panel manager's export method
+            print(f"[EXPORT] Checking if panel manager has export_to_excel method")
+            
+            if hasattr(panel_manager, 'export_to_excel'):
+                print(f"[EXPORT] Calling {panel_name}.export_to_excel")
+                try:
+                    panel_manager.export_to_excel(current_entity, export_folder, self.current_mode)
+                    print(f"[EXPORT] Excel export completed")
+                except Exception as e:
+                    print(f"[EXPORT] ERROR in export_to_excel: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    messagebox.showerror("Export Failed", f"Error exporting to Excel:\n{str(e)}")
+            else:
+                print(f"[EXPORT] Panel manager does not have export_to_excel method")
+                messagebox.showinfo(
+                    "Export Not Available",
+                    f"Excel export for {panel_name} panel is not yet implemented."
+                )
+    
+    def _get_export_folder(self):
+        """Get export folder path based on loaded CBOM file"""
+        if hasattr(self.app_controller, 'loaded_files') and self.app_controller.loaded_files:
+            cbom_path = self.app_controller.loaded_files.get('cbom')
+            if cbom_path:
+                return get_export_folder(cbom_path)
+        
+        # Fallback to current working directory
+        return get_export_folder()
     
     def _create_tooltip(self, widget, text):
         """Create a tooltip for a widget

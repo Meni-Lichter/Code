@@ -5,7 +5,9 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
+from pathlib import Path
 import calendar
+from tkinter import messagebox
 
 from src.analysis.performance_analyzer import PerformanceAnalyzer
 from src.models.performance import PerformanceData, TimePeriod
@@ -17,12 +19,13 @@ from src.ui.chart_utils import (
     get_all_period_labels,
     add_bar_value_labels
 )
+from src.ui.export_utils import export_data_to_excel
 
 
 class PerformancePanel:
     """Manages the Performance panel content and updates"""
     
-    def __init__(self, panel_widget, colors, font_sizes, get_font_func):
+    def __init__(self, panel_widget, colors, font_sizes, get_font_func, app_controller=None):
         """Initialize the performance panel manager
         
         Args:
@@ -30,11 +33,13 @@ class PerformancePanel:
             colors: Dictionary of color constants
             font_sizes: Dictionary of font sizes
             get_font_func: Function to get cached fonts
+            app_controller: App controller instance for accessing loaded files
         """
         self.panel = panel_widget
         self.COLORS = colors
         self.FONT_SIZES = font_sizes
         self._get_font = get_font_func
+        self.app_controller = app_controller
         self.content_frame = None
         
         # Initialize the performance analyzer
@@ -659,3 +664,38 @@ class PerformancePanel:
                         fontweight='bold',
                         color='#333333'
                     )
+    
+    def export_to_excel(self, entity, export_folder, mode):
+        """Export performance panel data to Excel
+        
+        Args:
+            entity: The entity object to export
+            export_folder: Path to export folder
+            mode: Current mode ("12nc" or "room")
+        """
+        # Check if panel has data
+        if not self.entity_obj:
+            messagebox.showwarning("No Data", "Performance panel has no data to export.")
+            return
+        
+        entity_id = entity.id
+        safe_entity_id = entity_id.replace('/', '_').replace('\\', '_')
+        
+        # Get aggregated sales data
+        data = self._aggregate_sales_data()
+        all_periods = self._get_all_period_labels()
+        
+        # Export using shared utility
+        filename_prefix = f"performance_{safe_entity_id}"
+        
+        export_data_to_excel(
+            data=data,
+            periods=all_periods,
+            years=list(self.selected_years),
+            export_folder=export_folder,
+            filename_prefix=filename_prefix,
+            entity_count=1,
+            mode=mode,
+            granularity=self.granularity,
+            selected_entity_ids=[entity_id]
+        )
