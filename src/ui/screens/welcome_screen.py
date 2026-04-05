@@ -352,7 +352,7 @@ class WelcomeScreen(ctk.CTkFrame):
             print(f"[WELCOME] Sample room keys: {list(rooms_dict.keys())[:3] if rooms_dict else 'None'}")
             print(f"[WELCOME] Sample 12NC keys: {list(nc12s_dict.keys())[:3] if nc12s_dict else 'None'}")
             
-            # Store only the dictionaries - lists and raw data not needed
+            # Store dictionaries for all screens (entity mode and bulk view)
             self.app_controller.current_data = {
                 "rooms_dict": rooms_dict,
                 "nc12s_dict": nc12s_dict
@@ -368,6 +368,13 @@ class WelcomeScreen(ctk.CTkFrame):
                 print(f"[WELCOME] Calling entity_screen.reload_data_from_uploaded_files()")
                 entity_screen.reload_data_from_uploaded_files(rooms_dict, nc12s_dict)
                 print(f"[WELCOME] Entity screen updated")
+            
+            # Update bulk view screen if it exists
+            if "bulk_view" in self.app_controller.screens:
+                bulk_screen = self.app_controller.screens["bulk_view"]
+                print(f"[WELCOME] Refreshing bulk view screen")
+                bulk_screen._initialize_data()
+                print(f"[WELCOME] Bulk view screen updated")
             
             # Success message with counts
             self.status_label.configure(

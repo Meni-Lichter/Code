@@ -10,6 +10,13 @@ import calendar
 from src.analysis.performance_analyzer import PerformanceAnalyzer
 from src.models.performance import PerformanceData, TimePeriod
 from src.models.mapping import G_entity
+from src.ui.theme import YEAR_COLORS, GRANULARITY_MAP, GRANULARITY_PERIODS
+from src.ui.chart_utils import (
+    extract_year_from_period,
+    convert_period_label_to_ui,
+    get_all_period_labels,
+    add_bar_value_labels
+)
 
 
 class PerformancePanel:
@@ -40,21 +47,9 @@ class PerformancePanel:
         self.selected_years = set()  # Years to display
         self.time_range = (0, 11)  # Default: full range (12 periods for months)
         
-        # Map UI granularities to analyzer granularities
-        self.granularity_map = {
-            "Months": "monthly",
-            "Quarters": "quarterly",
-            "Years": "yearly"
-        }
-        
-        # Year colors
-        self.year_colors = {
-            2026: "#FF8C42",  # Orange
-            2025: "#4A90E2",  # Blue
-            2024: "#50C878",  # Green
-            2023: "#9E9E9E",  # Grey
-            2022: "#9C27B0",  # Purple
-        }
+        # Use centralized theme configuration
+        self.granularity_map = GRANULARITY_MAP
+        self.year_colors = YEAR_COLORS
         
         # UI components
         self.canvas = None
@@ -316,12 +311,7 @@ class PerformancePanel:
     
     def _get_max_periods(self) -> int:
         """Get maximum number of periods based on granularity"""
-        granularity_periods = {
-            "Months": 12,
-            "Quarters": 4,
-            "Years": 3
-        }
-        return granularity_periods.get(self.granularity, 12)
+        return GRANULARITY_PERIODS.get(self.granularity, 12)
     
     def _aggregate_sales_data(self) -> Dict[int, Dict[str, int]]:
         """Aggregate sales data by year and time period using PerformanceAnalyzer
@@ -355,12 +345,12 @@ class PerformancePanel:
             data = {}
             for period in performance_data.periods:
                 # Extract year from period label
-                year = self._extract_year_from_period(period.label, analyzer_granularity)
+                year = extract_year_from_period(period.label, analyzer_granularity)
                 if year is None:
                     continue
                     
                 # Convert period label to UI format
-                ui_label = self._convert_period_label_to_ui(period.label, analyzer_granularity)
+                ui_label = convert_period_label_to_ui(period.label, analyzer_granularity)
                 
                 # Initialize year dict if needed
                 if year not in data:
@@ -374,70 +364,10 @@ class PerformancePanel:
             print(f"Error analyzing sales data: {e}")
             return {}
     
-    def _extract_year_from_period(self, period_label: str, analyzer_granularity: str) -> int | None:
-        """Extract year from analyzer period label
-        
-        Args:
-            period_label: Period label from analyzer (e.g., "03-2024", "2024-Q1", "2024")
-            analyzer_granularity: The granularity used by analyzer
-            
-        Returns:
-            Year as integer, or None if cannot be extracted
-        """
-        try:
-            if analyzer_granularity == "monthly":
-                # Format: "03-2024" -> 2024
-                return int(period_label.split("-")[1])
-            elif analyzer_granularity == "quarterly":
-                # Format: "2024-Q1" -> 2024
-                return int(period_label.split("-")[0])
-            elif analyzer_granularity == "yearly":
-                # Format: "2024" -> 2024
-                return int(period_label)
-        except (ValueError, IndexError):
-            return None
-        return None
-    
-    def _convert_period_label_to_ui(self, period_label: str, analyzer_granularity: str) -> str:
-        """Convert analyzer period label to UI-friendly format
-        
-        Args:
-            period_label: Period label from analyzer (e.g., "03-2024", "2024-Q1")
-            analyzer_granularity: The granularity used by analyzer
-            
-        Returns:
-            UI-friendly label (e.g., "Mar", "Q1", "2024")
-        """
-        try:
-            if analyzer_granularity == "monthly":
-                # Format: "03-2024" -> "Mar"
-                month_num = int(period_label.split("-")[0])
-                return calendar.month_abbr[month_num]
-            elif analyzer_granularity == "quarterly":
-                # Format: "2024-Q1" -> "Q1"
-                parts = period_label.split("-")
-                return parts[1] if len(parts) > 1 else period_label
-            elif analyzer_granularity == "yearly":
-                # Format: "2024" -> "2024"
-                return period_label
-        except (ValueError, IndexError):
-            pass
-        return period_label
-    
     def _get_all_period_labels(self) -> List[str]:
-        """Get all possible period labels for current granularity
-        
-        Returns:
-            List of period labels in order
-        """
-        if self.granularity == "Months":
-            return [calendar.month_abbr[i] for i in range(1, 13)]
-        elif self.granularity == "Quarters":
-            return ["Q1", "Q2", "Q3", "Q4"]
-        elif self.granularity == "Years":
-            available_years = self._get_available_years()
-            return [str(year) for year in sorted(available_years)]
-        return []
+        """Get all possible period labels for current granularity"""
+        available_years = self._get_available_years() if self.granularity == "Years" else None
+        return get_all_period_labels(self.granularity, available_years)
     
     def _update_chart(self):
         """Update the bar chart with current setting
@@ -505,7 +435,7 @@ class PerformancePanel:
             )
             
             # Add value labels on top of bars
-            self.add_bar_values(bars, values)
+            add_bar_value_labels(self.ax, bars, values)
 
         else:
             # For monthly/quarterly: group bars by year
@@ -536,7 +466,7 @@ class PerformancePanel:
                 )
                 
                 # Add value labels on top of bars
-                self.add_bar_values(bars, values)
+                add_bar_value_labels(self.ax, bars, values)
 
         # Customize chart
         self.ax.set_xlabel('Time Period', fontsize=11, fontweight='bold', color='#333333')

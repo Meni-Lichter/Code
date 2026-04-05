@@ -11,6 +11,7 @@ sys.path.insert(0, str(project_root))
 from src.ui.components.side_menu import SideMenu
 from src.ui.screens.welcome_screen import WelcomeScreen
 from src.ui.screens.entity_mode_screen import EntityModeScreen
+from src.ui.screens.bulk_view_screen import BulkViewScreen
 
 
 class PerformanceCenterApp(ctk.CTk):
@@ -37,7 +38,7 @@ class PerformanceCenterApp(ctk.CTk):
 
         # Data storage
         self.loaded_files = {}
-        self.current_data = {}
+        self.current_data = {}  # Contains rooms_dict and nc12s_dict
 
         # Create UI
         self._create_side_menu()
@@ -134,11 +135,7 @@ class PerformanceCenterApp(ctk.CTk):
         elif screen_name == "room_mode":
             return EntityModeScreen(self.content_frame, self, mode="room")
         elif screen_name == "bulk_view":
-            return self._create_placeholder_screen(
-                "Bulk Analysis View", 
-                "Analyze multiple 12NCs or Rooms simultaneously for comparative insights",
-                "Coming in Stage 9"
-            )
+            return BulkViewScreen(self.content_frame, self)
         elif screen_name == "config":
             return self._create_placeholder_screen(
                 "Configuration", 

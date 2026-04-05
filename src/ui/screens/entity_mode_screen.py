@@ -11,73 +11,25 @@ from src.ui.screens.panels import (
     PerformancePanel,
     PredictionPanel
 )
+from src.ui.theme import COLORS, FONT_SIZES, MODE_CONFIG
+from src.ui.ui_utils import FontCache
 
 
 class EntityModeScreen(ctk.CTkFrame):
     """Main analysis screen with 2x2 grid layout for 12NC and Room modes"""
     
-    # ============================================================================
-    # THEME CONFIGURATION & CONSTANTS
-    # ============================================================================
-    
-    # Color scheme
-    COLORS = {
-        "bg_main": "#EEF2F6",
-        "bg_panel": "#F8FAFC",
-        "bg_white": "#FFFFFF",
-        "bg_light": "#E7EDF3",
-        "bg_input": "#F8FAFC",
-        "border": "#D8E0E8",
-        "border_light": "#DCE4EC",
-        "text_dark": "#1E2A33",
-        "text_muted": "#5F6E7C",
-        "text_light": "#8A98A6",
-        "text_lighter": "#A8B3BD",
-        "text_button": "#2B3A44",
-        "accent_dark": "#35586E",
-        "accent_hover": "#2F4F63",
-        "accent_teal": "#4A8F93",
-        "accent_teal_hover": "#3F7F83",
-    }
-    
-    # Font sizes (stored for easy caching)
-    FONT_SIZES = {
-        "header": 36,
-        "title": 20,
-        "label": 18,
-        "body": 17,
-        "small": 15,
-        "xsmall": 10,
-    }
-    
-    # Mode configuration - defaults (will be populated from uploaded files)
-    MODE_CONFIG = {
-        "12nc": {
-            "key": "12nc",
-            "display": "12NC",
-            "title": "12NC Component Analysis",
-            "description": "Search and analyze component performance, belonging relationships, and demand forecasts",
-            "items": [],  # Will be populated from loaded CBOM data
-        },
-        "room": {
-            "key": "room",
-            "display": "Room",
-            "title": "Room Performance Analysis",
-            "description": "Analyze room performance metrics, deployed components, and predict future demand",
-            "items": [],  # Will be populated from loaded CBOM data
-        },
-    }
-    
     def __init__(self, parent, app_controller, mode="12nc"):
-        super().__init__(parent, fg_color=self.COLORS["bg_main"])
+        super().__init__(parent, fg_color=COLORS["bg_main"])
         
         self.app_controller = app_controller
         self.current_mode = mode
         self.selected_entity_12nc = None
         self.selected_entity_room = None
         
-        # Cache fonts to avoid recreating them repeatedly
-        self._font_cache = {}
+        # Use centralized theme
+        self.COLORS = COLORS
+        self.FONT_SIZES = FONT_SIZES
+        self.MODE_CONFIG = MODE_CONFIG
         
         # Populate data from previously loaded CBOM data
         self._initialize_data_from_controller()
@@ -106,18 +58,8 @@ class EntityModeScreen(ctk.CTkFrame):
     # ============================================================================
     
     def _get_font(self, family="Segoe UI", size=15, weight="normal"):
-        """Get or create a cached font
-            Args:
-                family: The font family (default "Segoe UI")
-                size: The font size (default 15)
-                weight: The font weight (default "normal")
-            Does: Retrieves a cached font if it exists, or creates and caches it if not
-            Returns: The requested font instance
-        """
-        key = (family, size, weight)
-        if key not in self._font_cache:
-            self._font_cache[key] = ctk.CTkFont(family=family, size=size, weight=weight)  # type: ignore
-        return self._font_cache[key]
+        """Get or create a cached font"""
+        return FontCache.get_font(family, size, weight)
     
     def _initialize_panel_managers(self):
         """Initialize panel manager instances
