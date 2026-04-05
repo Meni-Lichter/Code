@@ -42,6 +42,7 @@ class PredictionPanel:
         self.entity_obj = None
         self.mode = None
         self.prediction_result = None
+        self.last_config = {}  # Store last prediction config for export
         
         # Data limits (set when entity is loaded)
         self.max_years = 10
@@ -71,6 +72,7 @@ class PredictionPanel:
         self.entity_obj = entity_obj
         self.mode = mode
         self.prediction_result = None
+        self.last_config = {}  # Clear config when entity changes
         
         self.content_frame = self._find_content_frame()
         print(f"[PREDICTION] content_frame found: {self.content_frame is not None}")
@@ -537,6 +539,14 @@ class PredictionPanel:
                 kwargs["n_periods"] = n_periods
                 print(f"[PREDICTION] Using n_periods={n_periods} (max available: {self.max_periods})")
             
+            # Store config for export
+            self.last_config = {
+                "method": method,
+                "granularity": granularity,
+                "n_periods": kwargs.get("n_periods"),
+                "n_years": lookback if method == "avg_same_period_previous_years" else None
+            }
+            
             print(f"[PREDICTION] Calling predictor.predict with: {kwargs}")
             self.prediction_result = predictor.predict(**kwargs)
             print(f"[PREDICTION] Prediction result: {self.prediction_result}")
@@ -665,9 +675,10 @@ class PredictionPanel:
         
         pred = self.prediction_result
         
-        # Data
+        # Data - use last_config for consistency
+        granularity = self.last_config.get('granularity', 'monthly')
         data_rows = [
-            ("Granularity:", pred.granularity.title()),
+            ("Granularity:", granularity.title()),
             ("Period:", pred.period_label),
             ("Method:", pred.method.replace("_", " ").title()),
             ("Baseline:", f"{pred.baseline:.1f}"),
@@ -697,10 +708,10 @@ class PredictionPanel:
         
         # Add method-specific parameters
         config_rows = []
-        if hasattr(pred, 'n_periods') and pred.n_periods:
-            config_rows.append(("N Periods Used:", str(pred.n_periods)))
-        if hasattr(pred, 'n_years') and pred.n_years:
-            config_rows.append(("N Years Used:", str(pred.n_years)))
+        if self.last_config.get('n_periods'):
+            config_rows.append(("N Periods Used:", str(self.last_config['n_periods'])))
+        if self.last_config.get('n_years'):
+            config_rows.append(("N Years Used:", str(self.last_config['n_years'])))
         
         for label, value in config_rows:
             row += 1
@@ -728,9 +739,4 @@ class PredictionPanel:
             messagebox.showinfo("Export Successful", f"Prediction exported to:\n{file_path}")
         except Exception as e:
             messagebox.showerror("Export Failed", f"Error saving file:\n{str(e)}")
-      
-    
-        messagebox.showinfo(
-            "Export Not Available",
-            "Excel export for Prediction panel will be available in a future update.")
         
