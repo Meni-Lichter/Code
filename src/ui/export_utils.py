@@ -17,12 +17,11 @@ except ImportError:
 def get_export_folder(source_file_path: Optional[str] = None) -> Path:
     """Get or create date-stamped export folder next to source data files
     Reuses folder if already exists for that day
-    
     Args:
         source_file_path: Path to source file (CBOM, YMBD, etc.) - uses its parent
-        
-    Returns:
-        Path to export folder with date stamp: mm-dd-yyyy
+    Does: Creates a folder named "Exports_mm-dd-yyyy" in the same directory as the source file if provided 
+        and valid, otherwise in the current working directory. The folder is created if it doesn't exist, or    
+    Returns: Path to export folder with date stamp: mm-dd-yyyy
     """
     # Create date-only folder name
     date_stamp = datetime.now().strftime("%m-%d-%Y")
@@ -49,13 +48,13 @@ def export_screen_to_pdf(
     title: Optional[str] = None
 ) -> bool:
     """Export screenshot of widget/screen to PDF
-    
     Args:
         widget: The tkinter widget to capture
         export_folder: Path to export folder
         filename_prefix: Prefix for filename
         title: Optional title for the PDF
-        
+    Does: Captures a screenshot of the specified widget and saves it as a PDF file in the given export folder, 
+        using the provided filename prefix and title. Provides user feedback on success or failure of the export operation.
     Returns:
         True if export succeeded, False otherwise
     """
@@ -117,13 +116,13 @@ def export_chart_to_pdf(
     title: Optional[str] = None
 ) -> bool:
     """Export matplotlib figure to PDF in predetermined folder
-    
     Args:
         figure: Matplotlib figure object
         export_folder: Path to export folder
         filename_prefix: Prefix for filename
         title: Optional title for the PDF
-        
+    Does: Saves the given matplotlib figure as a PDF file in the specified export folder, 
+    using the provided filename prefix and title. Provides user feedback on success or failure of the export operation.
     Returns:
         True if export succeeded, False otherwise
     """
@@ -166,8 +165,7 @@ def export_data_to_excel(
     granularity: str = "",
     selected_entity_ids: Optional[List[str]] = None
 ) -> bool:
-    """Export data to Excel file in predetermined folder
-    
+    """Export data to Excel file in predetermined folder with metadata and entity IDs
     Args:
         data: Dictionary {year: {period: value}}
         periods: List of period labels
@@ -177,7 +175,10 @@ def export_data_to_excel(
         entity_count: Number of entities selected
         mode: Analysis mode ("12nc" or "room")
         granularity: Time granularity
-        
+    Does: Exports the provided data to an Excel file in the specified export folder, 
+        including metadata such as entity count, mode, and granularity. 
+        The filename is generated using the provided prefix and a timestamp. 
+        Provides user feedback on success or failure of the export operation.
     Returns:
         True if export succeeded, False otherwise
     """
@@ -240,6 +241,7 @@ def export_data_to_excel(
         ws.cell(start_row, 1, 'Period').font = header_font
         ws.cell(start_row, 1).fill = header_fill
         
+        # Add year headers
         for col_idx, year in enumerate(sorted(years), start=2):
             cell = ws.cell(start_row, col_idx, str(year))
             cell.font = header_font

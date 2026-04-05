@@ -12,12 +12,11 @@ class FontCache:
     @classmethod
     def get_font(cls, family: str = "Segoe UI", size: int = 15, weight: str = "normal") -> ctk.CTkFont:
         """Get or create a cached font
-        
         Args:
             family: Font family name
             size: Font size in points
             weight: Font weight ("normal" or "bold")
-            
+        Does: Retrieves a CTkFont instance from the cache if it exists, or creates and caches a new one if it doesn't.
         Returns:
             CTkFont instance
         """
